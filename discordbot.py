@@ -62,9 +62,8 @@ async def on_message(message):
                             if a:
                                 b = 'https://cdn.discordapp.com/emojis/' + a.group(1)
                                 messages = re.sub(emoji, f'[<ImageURL:{b}>]', messages)
-                        print(messages)
                         for embed in message.embeds:
-                            messages += embed
+                            messages += str(embed.to_dict())
                         try:
                             messages += f'[<ImageURL:{message.attachments[0].proxy_url}>]'
                         except Exception:
