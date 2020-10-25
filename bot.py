@@ -182,8 +182,8 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                     senderId = quote.senderId
                     orginquote = quote.origin.asDisplay()
                     msglist.append(f'> {senderId}: {orginquote}')
-                    newquotetarget = re.match(r'(.*?):.*',orginquote)
-                    if newquotetarget:
+                    newquotetargetre = re.match(r'(.*?):.*',orginquote)
+                    if newquotetargetre:
                         newquotetarget = newquotetarget.group(1)
                 ats = message.get(At)
                 for at in ats:
