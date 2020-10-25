@@ -110,29 +110,29 @@ async def dc_recv_msg(websocket, path):
             if debug == True:
                 await dc_debug_webhook(f'收到一条消息：`{recv_text}`，开始重建消息链。', f'[INFO] Websocket_DC')
             recv_text = recv_text.split('!:!:!:wqwqw!qwqwq')
-            async with aiohttp.ClientSession() as session:
-                webhook = Webhook.from_url(webhook_link
-                                           ,
-                                           adapter=AsyncWebhookAdapter(session))
-                qqavatarbase = 'https://ptlogin2.qq.com/getface?appid=1006102&imgtype=3&uin=' + recv_text[0]
-                async with session.get(qqavatarbase) as qlink:
-                    try:
-                        qqavatarlink = re.match(r'pt.setHeader\({".*?":"(https://thirdqq.qlogo.cn/.*)"}\)',
-                                                await qlink.text())
-                        qqavatarlink = qqavatarlink.group(1)
-                    except Exception:
-                        qqavatarlink = None
-                try:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    webhook = Webhook.from_url(webhook_link
+                                               ,
+                                               adapter=AsyncWebhookAdapter(session))
+                    qqavatarbase = 'https://ptlogin2.qq.com/getface?appid=1006102&imgtype=3&uin=' + recv_text[0]
+                    async with session.get(qqavatarbase) as qlink:
+                        try:
+                            qqavatarlink = re.match(r'pt.setHeader\({".*?":"(https://thirdqq.qlogo.cn/.*)"}\)',
+                                                    await qlink.text())
+                            qqavatarlink = qqavatarlink.group(1)
+                        except Exception:
+                            qqavatarlink = None
                     await webhook.send(recv_text[2], username=f'[QQ: {recv_text[0]}] {recv_text[1]}',
                                        avatar_url=qqavatarlink,
                                        allowed_mentions=discord.AllowedMentions(everyone=True))
                     if debug == True:
                         await dc_debug_webhook(f'成功将一条消息发送至Discord：`{recv_text[2]}`', f'[OK] Discord Webhook')
-                except Exception as e:
-                    if debug == True:
-                        await dc_debug_webhook(f'`{str(recv_text)}`发送时抛出了错误：\n{str(e)}',
-                                               f'[ERROR] Discord Webhook',
-                                               avatar_url='https://discordapp.com/assets/8becd37ab9d13cdfe37c08c496a9def3.svg')
+            except Exception as e:
+                if debug == True:
+                    await dc_debug_webhook(f'`{str(recv_text)}`发送时抛出了错误：\n{str(e)}',
+                                           f'[ERROR] Discord Webhook',
+                                           'https://discordapp.com/assets/8becd37ab9d13cdfe37c08c496a9def3.svg')
         except websockets.exceptions.ConnectionClosedOK:
             pass
 
@@ -158,67 +158,71 @@ async def sendmsg(message):
             if debug == True:
                 await dc_debug_webhook(f'`{str(message)}`发送时抛出了错误：\n{str(e)}',
                                        f'[ERROR] QQGroup -x Websocket_DC',
-                                       avatar_url='https://discordapp.com/assets/8becd37ab9d13cdfe37c08c496a9def3.svg')
+                                       'https://discordapp.com/assets/8becd37ab9d13cdfe37c08c496a9def3.svg')
 
 
 @bcc.receiver("GroupMessage", priority=3)
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
     if group.id == target_qqgroup:
-        if message.asDisplay()[0:2] != '//':
+        try:
+            if message.asDisplay()[0:2] != '//':
+                if debug == True:
+                    await dc_debug_webhook(f'收到消息链`{str(message)}`，开始转换消息链。', f'[INFO] {group.id}',
+                                           avatar_url='https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
+                msglist = []
+                quotes = message.get(Quote)
+                for quote in quotes:
+                    senderId = quote.senderId
+                    msglist.append(f'> {senderId}: {quote.origin.asDisplay()}')
+                ats = message.get(At)
+                for at in ats:
+                    atId = at.target
+                    atdis = f'@[QQ: {atId}]'
+                    if atdis not in msglist:
+                        msglist.append(f'@[QQ: {atId}]')
+                atalls = message.get(AtAll)
+                for atall in atalls:
+                    msglist.append('@全体成员')
+                msgs = message.get(Plain)
+                for msg in msgs:
+                    msglist.append(msg.text)
+                imgs = message.get(Image)
+                for img in imgs:
+                    msglist.append(img.url)
+                faces = message.get(Face)
+                for face in faces:
+                    msglist.append(f'[表情{face.faceId}]')
+                xmls = message.get(Xml)
+                for xml in xmls:
+                    msglist.append('[Xml消息]')
+                jsons = message.get(Json)
+                for jsonn in jsons:
+                    msglist.append('[Json消息]')
+                apps = message.get(App)
+                for appp in apps:
+                    msglist.append('[App消息]')
+                pokes = message.get(Poke)
+                for poke in pokes:
+                    msglist.append('[戳一戳]')
+                voices = message.get(Voice)
+                for voice in voices:
+                    msglist.append('[语音]')
+                flashimages = message.get(FlashImage)
+                for flashimage in flashimages:
+                    msglist.append('[闪照]')
+                allmsg = '\n'.join(msglist)
+                if debug == True:
+                    await dc_debug_webhook(f'消息链转换完毕：\n`{str(message)}` -> {str(allmsg)}。', f'[INFO] {group.id}',
+                                           avatar_url='https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
+                msglist = str(member.id), member.name, allmsg
+                await sendmsg(msglist)
+            else:
+                if debug == True:
+                    await dc_debug_webhook('有一条消息触发转发过滤，此消息已过滤', f'[INFO] {group.id}',
+                                           avatar_url='https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
+        except Exception as e:
             if debug == True:
-                await dc_debug_webhook(f'收到消息链`{str(message)}`，开始转换消息链。', f'[INFO] {group.id}',
-                                       avatar_url='https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
-            msglist = []
-            quotes = message.get(Quote)
-            for quote in quotes:
-                senderId = quote.senderId
-                msglist.append(f'> {senderId}: {quote.origin.asDisplay()}')
-            ats = message.get(At)
-            for at in ats:
-                atId = at.target
-                atdis = f'@[QQ: {atId}]'
-                if atdis not in msglist:
-                    msglist.append(f'@[QQ: {atId}]')
-            atalls = message.get(AtAll)
-            for atall in atalls:
-                msglist.append('@全体成员')
-            msgs = message.get(Plain)
-            for msg in msgs:
-                msglist.append(msg.text)
-            imgs = message.get(Image)
-            for img in imgs:
-                msglist.append(img.url)
-            faces = message.get(Face)
-            for face in faces:
-                msglist.append(f'[表情{face.faceId}]')
-            xmls = message.get(Xml)
-            for xml in xmls:
-                msglist.append('[Xml消息]')
-            jsons = message.get(Json)
-            for jsonn in jsons:
-                msglist.append('[Json消息]')
-            apps = message.get(App)
-            for appp in apps:
-                msglist.append('[App消息]')
-            pokes = message.get(Poke)
-            for poke in pokes:
-                msglist.append('[戳一戳]')
-            voices = message.get(Voice)
-            for voice in voices:
-                msglist.append('[语音]')
-            flashimages = message.get(FlashImage)
-            for flashimage in flashimages:
-                msglist.append('[闪照]')
-            allmsg = '\n'.join(msglist)
-            if debug == True:
-                await dc_debug_webhook(f'消息链转换完毕：\n`{str(message)}` -> {str(allmsg)}。', f'[INFO] {group.id}',
-                                       avatar_url='https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
-            msglist = str(member.id), member.name, allmsg
-            await sendmsg(msglist)
-        else:
-            if debug == True:
-                await dc_debug_webhook('有一条消息触发转发过滤，此消息已过滤', f'[INFO] {group.id}',
-                                       avatar_url='https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
-
+                await dc_debug_webhook(f'执行操作时发生了错误：\n`{str(e)}`', f'[ERROR] {group.id}',
+                                       avatar_url='https://discordapp.com/assets/8becd37ab9d13cdfe37c08c496a9def3.svg')
 
 app.launch_blocking()
