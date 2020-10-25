@@ -1,5 +1,6 @@
 import asyncio
 import re
+import traceback
 from configparser import ConfigParser
 from os.path import abspath
 
@@ -21,20 +22,24 @@ section = cp.sections()[0]
 
 loop = asyncio.get_event_loop()
 
+qq = cp.get(section, 'qq')
 bcc = Broadcast(loop=loop)
 app = GraiaMiraiApplication(
     broadcast=bcc,
     connect_info=Session(
         host=cp.get(section, 'mah_link'),
         authKey=cp.get(section, 'mah_auth'),
-        account=cp.get(section, 'qq'),
+        account=qq,
         websocket=True
     )
 )
 
 target_qqgroup = int(cp.get(section, 'qqgroup'))
 webhook_link = cp.get(section, 'webhook_link')
-debug = bool(cp.get(section, 'debug'))
+debug = cp.get(section, 'debug')
+print(debug)
+if debug == 'True':
+    debug = True
 if debug == True:
     debug_webhook_link = cp.get(section, 'debug_webhook_link')
 else:
@@ -52,7 +57,8 @@ async def dc_debug_webhook(message, username, avatar_url=None):
 
 @bcc.receiver("ApplicationLaunched")
 async def runprompt():
-    await dc_debug_webhook(f'互联QQ侧机器人已启动。', f'[INFO] QQBOT',
+    if debug == True:
+        await dc_debug_webhook(f'互联QQ侧机器人已启动。', f'[INFO] QQBOT',
                            'https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
 
 
@@ -66,7 +72,7 @@ async def qq_recv_msg(websocket, path):
             msgchain = MessageChain.create([])
             text = recv_text
             text = re.sub('\[\<.*:.*\>\]', '', text)
-            text = re.split(r'(@\[QQ: .*?\].*#0000)', text)
+            text = re.split(r'(@\[QQ: .*?\].*#0000|@\[QQ: .*?\])', text)
             for ele in text:
                 matele = re.match(r'@\[QQ: (.*?)]', ele)
                 if matele:
@@ -170,22 +176,32 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                     await dc_debug_webhook(f'收到消息链`{str(message)}`，开始转换消息链。', f'[INFO] {group.id}',
                                            avatar_url='https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
                 msglist = []
+                newquotetarget = None
                 quotes = message.get(Quote)
                 for quote in quotes:
                     senderId = quote.senderId
-                    msglist.append(f'> {senderId}: {quote.origin.asDisplay()}')
+                    orginquote = quote.origin.asDisplay()
+                    msglist.append(f'> {senderId}: {orginquote}')
+                    newquotetarget = re.match(r'(.*?):.*',orginquote)
+                    newquotetarget = newquotetarget.group(1)
                 ats = message.get(At)
                 for at in ats:
                     atId = at.target
                     atdis = f'@[QQ: {atId}]'
+                    print(atdis, f'@[QQ: {qq}]')
+                    if atdis == f'@[QQ: {qq}]':
+                        print(newquotetarget)
+                        if newquotetarget != None:
+                            atdis = f'@{newquotetarget} '
                     if atdis not in msglist:
-                        msglist.append(f'@[QQ: {atId}]')
+                        msglist.append(atdis)
                 atalls = message.get(AtAll)
                 for atall in atalls:
                     msglist.append('@全体成员')
                 msgs = message.get(Plain)
                 for msg in msgs:
-                    msglist.append(msg.text)
+                    if msg.text != ' ':
+                        msglist.append(msg.text)
                 imgs = message.get(Image)
                 for img in imgs:
                     msglist.append(img.url)
@@ -221,6 +237,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                     await dc_debug_webhook('有一条消息触发转发过滤，此消息已过滤', f'[INFO] {group.id}',
                                            avatar_url='https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
         except Exception as e:
+            traceback.print_exc()
             if debug == True:
                 await dc_debug_webhook(f'执行操作时发生了错误：\n`{str(e)}`', f'[ERROR] {group.id}',
                                        avatar_url='https://discordapp.com/assets/8becd37ab9d13cdfe37c08c496a9def3.svg')

@@ -15,7 +15,9 @@ cp.read(abspath("./config.cfg"))
 section = cp.sections()[0]
 channelid = int(cp.get(section, 'dc_channel'))
 bottoken = cp.get(section, 'dc_bottoken')
-debug = bool(cp.get(section, 'debug'))
+debug = cp.get(section, 'debug')
+if debug == 'True':
+    debug = True
 if debug == True:
     debug_webhook_link = cp.get(section, 'debug_webhook_link')
 else:
