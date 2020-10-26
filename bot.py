@@ -22,7 +22,7 @@ section = cp.sections()[0]
 
 loop = asyncio.get_event_loop()
 
-qq = cp.get(section, 'qq')
+qq = int(cp.get(section, 'qq'))
 bcc = Broadcast(loop=loop)
 app = GraiaMiraiApplication(
     broadcast=bcc,
