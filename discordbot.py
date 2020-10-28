@@ -1,5 +1,6 @@
 import asyncio
 import re
+import traceback
 from configparser import ConfigParser
 from os.path import abspath
 
@@ -62,8 +63,23 @@ async def on_message(message):
                             if a:
                                 b = 'https://cdn.discordapp.com/emojis/' + a.group(1)
                                 messages = re.sub(emoji, f'[<ImageURL:{b}>]', messages)
+                        emsglst = []
                         for embed in message.embeds:
-                            messages += str(embed.to_dict())
+                            ele = embed.to_dict()
+                            if 'title' in ele:
+                                emsglst.append(ele['title'])
+                            if 'url' in ele:
+                                emsglst.append(ele['url'])
+                            if 'fields' in ele:
+                                for field_value in ele['fields']:
+                                    emsglst.append(field_value['name'] + field_value['value'])
+                            if 'description' in ele:
+                                emsglst.append(ele['description'])
+                            if 'footer' in ele:
+                                emsglst.append(ele['footer']['text'])
+                            if 'image' in ele:
+                                emsglst.append(f'[<ImageURL:{ele["image"]["proxy_url"]}>]')
+                        messages += "\n".join(emsglst)
                         try:
                             messages += f'[<ImageURL:{message.attachments[0].proxy_url}>]'
                         except Exception:
@@ -84,6 +100,7 @@ async def on_message(message):
                             '此消息触发转发过滤，已过滤',
                             f'[INFO] {message.channel.id}')
             except Exception as e:
+                traceback.print_exc()
                 if debug == True:
                     await dc_debug_webhook(f'`执行操作时抛出了错误：\n{str(e)}',
                                            f'[ERROR] DCChannel',
