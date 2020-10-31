@@ -93,7 +93,7 @@ async def recv_msg():
     async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
         while True:
             recv_text = await websocket.recv()
-            mch = re.match(r'\[(.*?)\](.*)',recv_text)
+            mch = re.match(r'\[(.*?)\](.*)',recv_text,re.S)
             try:
                 if mch:
                     if mch.group(1) == 'QQ':
@@ -206,6 +206,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             msglist = str(member.id), member.name, allmsg
             async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
                 message = '!:!:!:wqwqw!qwqwq'.join(msglist)
+                print(message)
                 await websocket.send('[Discord]' + message)
 
 loop2 = asyncio.new_event_loop()
