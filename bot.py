@@ -68,7 +68,7 @@ async def msgbroadcast_handler(websocket, path):
         CLIENTS.remove(websocket)
 
 
-@bcc.receiver("ApplicationLaunched")
+@bcc.receiver("ApplicationLaunched", priority=1)
 async def start_websocket():
     await websockets.serve(msgbroadcast_handler, '127.0.0.1', websocket_port)
 
@@ -140,7 +140,7 @@ async def sendmsg(message):
         await websocket.send('[Discord]' + message)
 
 
-@bcc.receiver("GroupMessage", priority=3)
+@bcc.receiver("GroupMessage")
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
     if group.id == target_qqgroup:
         if message.asDisplay()[0:2] != '//':
