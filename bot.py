@@ -104,9 +104,9 @@ async def recv_msg():
                         for ele in text:
                             matele = re.match(r'@\[QQ: (.*?)]', ele)
                             if matele:
-                                msgchain = msgchain.plusWith([At(int(matele.group(1)))])
+                                msgchain = msgchain.plusWith(MessageChain.create([At(int(matele.group(1)))]))
                             else:
-                                msgchain = msgchain.plusWith([Plain(ele)])
+                                msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
                         await app.sendGroupMessage(target_qqgroup, msgchain)
                         textre = re.findall(r'\[\<.*?:.*?\>\]', mch.group(2))
                         for elements in textre:
