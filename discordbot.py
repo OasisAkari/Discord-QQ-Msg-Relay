@@ -16,6 +16,7 @@ cp.read(abspath("./config.cfg"))
 section = cp.sections()[0]
 channelid = int(cp.get(section, 'dc_channel'))
 bottoken = cp.get(section, 'dc_bottoken')
+websocket_port = cp.get(section, 'websocket_port')
 debug = cp.get(section, 'debug')
 if debug == 'True':
     debug = True
@@ -51,7 +52,7 @@ async def on_message(message):
                     await dc_debug_webhook(
                         f'从频道{message.channel.id}中接收到一条消息：`{message.author}: {message.content + str(message.embeds)}`，开始消息链转换。',
                         f'[INFO] {message.channel.id}')
-                async with websockets.connect('ws://127.0.0.1:' + cp.get(section, 'websocket_qq_port')) as websocket:
+                async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
                     messages = message.content
                     if messages[0:2] != '//':
                         print(messages[0:2])
@@ -86,7 +87,7 @@ async def on_message(message):
                             pass
                         try:
                             messages = f'{message.author}: {messages}'
-                            await websocket.send(messages)
+                            await websocket.send('[QQ]'+messages)
                             if debug == True:
                                 await dc_debug_webhook(
                                     f'成功发送一条消息到Websocket_QQ：{messages}', f'[OK] DCChannel -> Websocket_QQ')
