@@ -1,6 +1,5 @@
 import asyncio
 import re
-import traceback
 from configparser import ConfigParser
 from os.path import abspath
 
@@ -86,14 +85,15 @@ async def dc_debug_webhook(message, username, avatar_url=None):
 async def runprompt():
     if debug == True:
         await dc_debug_webhook(f'互联QQ侧机器人已启动。', f'[INFO] QQBOT',
-                           'https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
+                               'https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
+
 
 @bcc.receiver("ApplicationLaunched")
 async def recv_msg():
     async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
         while True:
             recv_text = await websocket.recv()
-            mch = re.match(r'\[(.*?)\](.*)',recv_text,re.S)
+            mch = re.match(r'\[(.*?)\](.*)', recv_text, re.S)
             try:
                 if mch:
                     if mch.group(1) == 'QQ':
@@ -112,7 +112,8 @@ async def recv_msg():
                         for elements in textre:
                             a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
                             if a:
-                                msgchain2 = msgchain.create([Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
+                                msgchain2 = msgchain.create(
+                                    [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
                                 await app.sendGroupMessage(target_qqgroup, msgchain2)
                     elif mch.group(1) == 'Discord':
                         recv_text = mch.group(2).split('!:!:!:wqwqw!qwqwq')
@@ -129,10 +130,11 @@ async def recv_msg():
                                 except Exception:
                                     qqavatarlink = None
                             await webhook.send(recv_text[2], username=f'[QQ: {recv_text[0]}] {recv_text[1]}',
-                                                   avatar_url=qqavatarlink,
-                                                   allowed_mentions=discord.AllowedMentions(everyone=True))
+                                               avatar_url=qqavatarlink,
+                                               allowed_mentions=discord.AllowedMentions(everyone=True))
             except websockets.exceptions.ConnectionClosedOK:
                 pass
+
 
 async def sendmsg(message):
     async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
@@ -157,7 +159,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                     msglist.append(f'> {orginquote}')
                 else:
                     msglist.append(f'> {senderId}: {orginquote}')
-                newquotetargetre = re.match(r'(.*?):.*',orginquote)
+                newquotetargetre = re.match(r'(.*?):.*', orginquote)
                 if newquotetargetre:
                     newquotetarget = newquotetargetre.group(1)
             ats = message.get(At)
@@ -208,6 +210,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 message = '!:!:!:wqwqw!qwqwq'.join(msglist)
                 print(message)
                 await websocket.send('[Discord]' + message)
+
 
 loop2 = asyncio.new_event_loop()
 loop2.create_task(app.launch_blocking())
