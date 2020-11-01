@@ -84,32 +84,48 @@ async def on_message(message):
 import websockets
 @client.event
 async def on_connect():
-    async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-        while True:
-            recv_text = await websocket.recv()
-            try:
-                channel = client.get_channel(channelid)
-                mch = re.match(r'\[(.*?)\](.*)', recv_text, re.S)
-                if mch:
-                    if mch.group(1) == 'QQrecall':
-                        dbpath = os.path.abspath('./msgdb.db')
-                        conn = sqlite3.connect(dbpath)
-                        c = conn.cursor()
-                        cc = c.execute("SELECT * FROM ID WHERE QQID=?", (mch.group(2),))
-                        for x in cc:
-                            msgid = x[0]
-                        try:
-                            aa = await channel.fetch_message(msgid)
-                            print(aa)
-                            await aa.delete()
-                        except:
-                            continue
-            except Exception:
-                traceback.print_exc()
+    await connectws()
+
+async def connectws():
+    while True:
+        try:
+            async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
+                while True:
+                    try:
+                        recv_text = await websocket.recv()
+                        channel = client.get_channel(channelid)
+                        mch = re.match(r'\[(.*?)\](.*)', recv_text, re.S)
+                        if mch:
+                            if mch.group(1) == 'QQrecall':
+                                dbpath = os.path.abspath('./msgdb.db')
+                                conn = sqlite3.connect(dbpath)
+                                c = conn.cursor()
+                                cc = c.execute("SELECT * FROM ID WHERE QQID=?", (mch.group(2),))
+                                for x in cc:
+                                    msgid = x[0]
+                                try:
+                                    aa = await channel.fetch_message(msgid)
+                                    print(aa)
+                                    await aa.delete()
+                                except:
+                                    continue
+                    except websockets.exceptions.ConnectionClosedError:
+                        traceback.print_exc()
+                        await websocket.close()
+                        break
+                    except Exception:
+                        traceback.print_exc()
+                await asyncio.sleep(5)
+        except Exception:
+            traceback.print_exc()
+            await asyncio.sleep(5)
+
 
 @client.event
 async def on_message_delete(message):
-    async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-        await websocket.send(f'[DCdelete]{message.id}')
+    if message.id != -1:
+        async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
+            await websocket.send(f'[DCdelete]{message.id}')
+            await websocket.close()
 
 asyncio.create_task(client.run(bottoken))

@@ -19,7 +19,7 @@ from graia.application.message.elements.internal import Plain, Image, FlashImage
 from graia.application.message.elements.internal import UploadMethods
 from graia.broadcast import Broadcast
 
-from msgdb import writeid
+from msgdb import writeid, writeqqmsg
 
 cp = ConfigParser()
 cp.read(abspath("./config.cfg"))
@@ -171,19 +171,29 @@ async def sendmsg(message):
     async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
         message = '!:!:!:wqwqw!qwqwq'.join(message)
         await websocket.send('[Discord]' + message)
+        await websocket.close()
 
 @bcc.receiver("GroupRecallEvent")
 async def revokeevent(event: GroupRecallEvent):
     async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
         await websocket.send(f'[QQrecall]{event.messageId}')
+        await websocket.close()
+    if debug == True:
+        try:
+            dbpath = os.path.abspath('./qqmsg.db')
+            conn = sqlite3.connect(dbpath)
+            c = conn.cursor()
+            cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
+            for x in cc:
+                msg = x[1]
+            await dc_debug_webhook(f'{event.authorId} 撤回了一条消息： {msg}', '[QQ]')
+        except Exception:
+            traceback.print_exc()
 
 @bcc.receiver("GroupMessage")
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
     if group.id == target_qqgroup:
         if message.asDisplay()[0:2] != '//':
-            if debug == True:
-                await dc_debug_webhook(f'收到消息链`{str(message)}`，开始转换消息链。', f'[INFO] {group.id}',
-                                       avatar_url='https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
             msglist = []
             newquotetarget = None
             quotes = message.get(Quote)
@@ -244,6 +254,8 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             for flashimage in flashimages:
                 msglist.append('[闪照]')
             allmsg = '\n'.join(msglist)
+            if debug == True:
+                writeqqmsg(message[Source][0].id, allmsg)
             msglist = str(member.id), str(message[Source][0].id), member.name, allmsg
             async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
                 message = '!:!:!:wqwqw!qwqwq'.join(msglist)
