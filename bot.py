@@ -190,10 +190,14 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             for quote in quotes:
                 senderId = quote.senderId
                 orginquote = quote.origin.asDisplay()
-                if senderId == qq:
-                    msglist.append(f'> {orginquote}')
-                else:
-                    msglist.append(f'> {senderId}: {orginquote}')
+                if senderId != qq:
+                    orginquote = f'{senderId}: \r{orginquote}'
+                quotesplit = orginquote.split('\r')
+                print(quotesplit)
+                nfquote = []
+                for x in quotesplit:
+                    nfquote.append(f'> {x}')
+                msglist.append('\n'.join(nfquote))
                 newquotetargetre = re.match(r'(.*?):.*', orginquote)
                 if newquotetargetre:
                     newquotetarget = newquotetargetre.group(1)
