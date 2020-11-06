@@ -113,7 +113,7 @@ async def recv_msg():
                     msgchain = MessageChain.create([])
                     text = j['Text']
                     if 'Nick' in j:
-                        displayname = f'{j["Name"]}({j["Nick"]})'
+                        displayname = f'{j["Nick"]}({j["Name"]})'
                     else:
                         displayname = j["Name"]
                     text = f'{displayname}: \n{text}'
