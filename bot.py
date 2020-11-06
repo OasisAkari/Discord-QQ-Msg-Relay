@@ -216,6 +216,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 orginquote = quote.origin.asDisplay()
                 if senderId != qq:
                     orginquote = f'{senderId}: \r{orginquote}'
+                orginquote = re.sub('\n', '\r', orginquote)
                 quotesplit = orginquote.split('\r')
                 print(quotesplit)
                 nfquote = []
