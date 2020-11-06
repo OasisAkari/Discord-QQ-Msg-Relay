@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import re
 import sqlite3
@@ -54,6 +55,13 @@ else:
 CLIENTS = set()
 
 
+def connect_db(path):
+    dbpath = os.path.abspath(path)
+    conn = sqlite3.connect(dbpath)
+    c = conn.cursor()
+    return c
+
+
 async def msgbroadcast(msg):
     await asyncio.gather(
         *[ws.send(msg) for ws in CLIENTS],
@@ -99,72 +107,73 @@ async def recv_msg():
     async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
         while True:
             recv_text = await websocket.recv()
-            mch = re.match(r'\[(.*?)\](.*)', recv_text, re.S)
+            j = json.loads(recv_text)
             try:
-                if mch:
+                if j['Type'] == 'QQ':
+                    msgchain = MessageChain.create([])
+                    text = j['Text']
+                    if 'Nick' in j:
+                        displayname = f'{j["Name"]}({j["Nick"]})'
+                    else:
+                        displayname = j["Name"]
+                    text = f'{displayname}: \n{text}'
+                    text = re.sub('\[<.*:.*>]', '', text)
+                    text = re.split(r'(@\[QQ: .*?].*#0000|@\[QQ: .*?])', text)
+                    for ele in text:
+                        matele = re.match(r'@\[QQ: (.*?)]', ele)
+                        if matele:
+                            msgchain = msgchain.plusWith(MessageChain.create([At(int(matele.group(1)))]))
+                        else:
+                            msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
+                    sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain)
+                    msgid = str(sendmsg.messageId)
+                    textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
                     try:
-                        if mch.group(1) == 'QQ':
-                            mch = re.match(r'\[(.*?)\](.*)', mch.group(2), re.S)
-                            msgchain = MessageChain.create([])
-                            text = mch.group(2)
-                            text = re.sub('\[\<.*:.*\>\]', '', text)
-                            text = re.split(r'(@\[QQ: .*?\].*#0000|@\[QQ: .*?\])', text)
-                            for ele in text:
-                                matele = re.match(r'@\[QQ: (.*?)]', ele)
-                                if matele:
-                                    msgchain = msgchain.plusWith(MessageChain.create([At(int(matele.group(1)))]))
-                                else:
-                                    msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
-                            sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain)
-                            msgid = str(sendmsg.messageId)
-                            textre = re.findall(r'\[\<.*?:.*?\>\]', mch.group(2))
-                            try:
-                                for elements in textre:
-                                    a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
-                                    if a:
-                                        msgchain2 = msgchain.create(
-                                            [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
-                                        sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2)
-                                        msgid += f'|{sendimg.messageId}'
-                            except Exception:
-                                pass
-                            writeid(mch.group(1),msgid)
-                        elif mch.group(1) == 'Discord':
-                            recv_text = mch.group(2).split('!:!:!:wqwqw!qwqwq')
-                            async with aiohttp.ClientSession() as session:
-                                webhook = Webhook.from_url(webhook_link
-                                                           ,
-                                                           adapter=AsyncWebhookAdapter(session))
-                                qqavatarbase = 'https://ptlogin2.qq.com/getface?appid=1006102&imgtype=3&uin=' + recv_text[0]
-                                async with session.get(qqavatarbase) as qlink:
-                                    try:
-                                        qqavatarlink = re.match(r'pt.setHeader\({".*?":"(https://thirdqq.qlogo.cn/.*)"}\)',
-                                                                await qlink.text())
-                                        qqavatarlink = qqavatarlink.group(1)
-                                    except Exception:
-                                        qqavatarlink = None
-                                send = await webhook.send(recv_text[3], username=f'[QQ: {recv_text[0]}] {recv_text[2]}',
-                                                   avatar_url=qqavatarlink,
-                                                   allowed_mentions=discord.AllowedMentions(everyone=True), wait=True)
-                                writeid(send.id, recv_text[1])
-                        elif mch.group(1) == 'DCdelete':
-                            dbpath = os.path.abspath('./msgdb.db')
-                            conn = sqlite3.connect(dbpath)
-                            c = conn.cursor()
-                            cc = c.execute("SELECT * FROM ID WHERE DCID=?", (mch.group(2),))
-                            for x in cc:
-                                msgids = x[1]
-                                msgids = msgids.split('|')
-                                for msgid in msgids:
-                                    try:
-                                        await app.revokeMessage(msgid)
-                                    except Exception:
-                                        continue
+                        for elements in textre:
+                            a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
+                            if a:
+                                msgchain2 = msgchain.create(
+                                    [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
+                                sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2)
+                                msgid += f'|{sendimg.messageId}'
                     except Exception:
-                        traceback.print_exc()
-                        continue
+                        pass
+                    writeid(j['MID'], msgid)
+                elif j['Type'] == 'Discord':
+                    async with aiohttp.ClientSession() as session:
+                        webhook = Webhook.from_url(webhook_link
+                                                   ,
+                                                   adapter=AsyncWebhookAdapter(session))
+                        qqavatarbase = 'https://ptlogin2.qq.com/getface?appid=1006102&imgtype=3&uin=' + j['UID']
+                        async with session.get(qqavatarbase) as qlink:
+                            try:
+                                qqavatarlink = re.match(r'pt.setHeader\({".*?":"(https://thirdqq.qlogo.cn/.*)"}\)',
+                                                        await qlink.text())
+                                qqavatarlink = qqavatarlink.group(1)
+                            except Exception:
+                                qqavatarlink = None
+                        send = await webhook.send(j["Text"], username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                                  avatar_url=qqavatarlink,
+                                                  allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
+                                                  wait=True)
+                        writeid(send.id, j["MID"])
+                elif j['Type'] == 'DCdelete':
+                    c = connect_db('./msgdb.db')
+                    cc = c.execute("SELECT * FROM ID WHERE DCID=?", (j['MID'],))
+                    for x in cc:
+                        msgids = x[1]
+                        msgids = msgids.split('|')
+                        for msgid in msgids:
+                            try:
+                                await app.revokeMessage(msgid)
+                            except Exception:
+                                continue
+                    c.close()
             except websockets.exceptions.ConnectionClosedOK:
                 pass
+            except Exception:
+                traceback.print_exc()
+                continue
 
 
 async def sendmsg(message):
@@ -173,22 +182,27 @@ async def sendmsg(message):
         await websocket.send('[Discord]' + message)
         await websocket.close()
 
+
 @bcc.receiver("GroupRecallEvent")
 async def revokeevent(event: GroupRecallEvent):
     async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-        await websocket.send(f'[QQrecall]{event.messageId}')
+        dst = {}
+        dst['Type'] = 'QQrecall'
+        dst['MID'] = event.messageId
+        j = json.dumps(dst)
+        await websocket.send(j)
         await websocket.close()
     if debug == True:
-        try:
-            dbpath = os.path.abspath('./qqmsg.db')
-            conn = sqlite3.connect(dbpath)
-            c = conn.cursor()
-            cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
-            for x in cc:
-                msg = x[1]
-            await dc_debug_webhook(f'{event.authorId} 撤回了一条消息： {msg}', '[QQ]')
-        except Exception:
-            traceback.print_exc()
+        if event.group.id == target_qqgroup:
+            try:
+                c = connect_db('./qqmsg.db')
+                cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
+                for x in cc:
+                    msg = x[1]
+                await dc_debug_webhook(f'{event.authorId} 撤回了一条消息： {msg}', '[QQ]')
+            except Exception:
+                traceback.print_exc()
+
 
 @bcc.receiver("GroupMessage")
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
@@ -256,11 +270,16 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             allmsg = '\n'.join(msglist)
             if debug == True:
                 writeqqmsg(message[Source][0].id, allmsg)
-            msglist = str(member.id), str(message[Source][0].id), member.name, allmsg
+            dst = {}
+            dst['Type'] = 'Discord'
+            dst['UID'] = str(member.id)
+            dst['Name'] = member.name
+            dst['MID'] = str(message[Source][0].id)
+            dst['Text'] = allmsg
+            j = json.dumps(dst)
             async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-                message = '!:!:!:wqwqw!qwqwq'.join(msglist)
-                print(message)
-                await websocket.send('[Discord]' + message)
+                print(j)
+                await websocket.send(j)
 
 
 loop2 = asyncio.new_event_loop()

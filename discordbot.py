@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import re
 import sqlite3
@@ -12,6 +13,7 @@ import websockets
 from discord import Webhook, AsyncWebhookAdapter
 
 client = discord.Client()
+
 
 cp = ConfigParser()
 cp.read(abspath("./config.cfg"))
@@ -27,6 +29,11 @@ if debug == True:
 else:
     debug_webhook_link = None
 
+def connect_db(path):
+    dbpath = os.path.abspath(path)
+    conn = sqlite3.connect(dbpath)
+    c = conn.cursor()
+    return c
 
 async def dc_debug_webhook(message, username, avatar_url=None):
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(5)) as session:
@@ -79,8 +86,17 @@ async def on_message(message):
                         messages += f'[<ImageURL:{message.attachments[0].proxy_url}>]'
                     except Exception:
                         pass
-                    messages = f'{message.author}: {messages}'
-                    await websocket.send(f'[QQ][{message.id}]' + messages)
+                    dst = {}
+                    dst['Type'] = 'QQ'
+                    dst['UID'] = str(message.author.id)
+                    dst['Name'] = str(message.author)
+                    if message.author.nick is not None:
+                        dst['Nick'] = message.author.nick
+                    dst['MID'] = str(message.id)
+                    dst['Text'] = messages
+                    print(dst)
+                    j = json.dumps(dst)
+                    await websocket.send(j)
 import websockets
 @client.event
 async def on_connect():
@@ -93,22 +109,18 @@ async def connectws():
                 while True:
                     try:
                         recv_text = await websocket.recv()
-                        channel = client.get_channel(channelid)
-                        mch = re.match(r'\[(.*?)\](.*)', recv_text, re.S)
-                        if mch:
-                            if mch.group(1) == 'QQrecall':
-                                dbpath = os.path.abspath('./msgdb.db')
-                                conn = sqlite3.connect(dbpath)
-                                c = conn.cursor()
-                                cc = c.execute("SELECT * FROM ID WHERE QQID=?", (mch.group(2),))
-                                for x in cc:
-                                    msgid = x[0]
-                                try:
-                                    aa = await channel.fetch_message(msgid)
-                                    print(aa)
-                                    await aa.delete()
-                                except:
-                                    continue
+                        j = json.loads(recv_text)
+                        if j['Type'] == 'QQrecall':
+                            channel = client.get_channel(channelid)
+                            c = connect_db('./msgdb.db')
+                            cc = c.execute("SELECT * FROM ID WHERE QQID=?", (j['MID'],))
+                            for x in cc:
+                                msgid = x[0]
+                            try:
+                                aa = await channel.fetch_message(msgid)
+                                await aa.delete()
+                            except:
+                                continue
                     except websockets.exceptions.ConnectionClosedError:
                         traceback.print_exc()
                         await websocket.close()
@@ -125,7 +137,11 @@ async def connectws():
 async def on_message_delete(message):
     if message.id != -1:
         async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-            await websocket.send(f'[DCdelete]{message.id}')
+            dst = {}
+            dst['Type'] = 'DCdelete'
+            dst['MID'] = message.id
+            j = json.dumps(dst)
+            await websocket.send(j)
             await websocket.close()
 
 asyncio.create_task(client.run(bottoken))
