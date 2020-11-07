@@ -248,8 +248,11 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                             newquotetarge = f'@{newquotetarget}'
                         atdis = newquotetarge
                 else:
-                    getnickname = await app.getMember(target_qqgroup, atId)
-                    atdis = f'{atdis} {getnickname.name}'
+                    try:
+                        getnickname = await app.getMember(target_qqgroup, atId)
+                        atdis = f'{atdis} {getnickname.name}'
+                    except Exception:
+                        pass
                 if atdis not in msglist:
                     msglist.append(atdis)
             atalls = message.get(AtAll)
