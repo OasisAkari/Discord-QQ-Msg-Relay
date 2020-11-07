@@ -11,7 +11,7 @@ import aiohttp
 import discord
 import websockets
 from discord import Webhook, AsyncWebhookAdapter
-from graia.application import GraiaMiraiApplication, Session, BotMessage
+from graia.application import GraiaMiraiApplication, Session
 from graia.application.event.mirai import GroupRecallEvent
 from graia.application.group import Group, Member
 from graia.application.message.chain import MessageChain
@@ -20,7 +20,7 @@ from graia.application.message.elements.internal import Plain, Image, FlashImage
 from graia.application.message.elements.internal import UploadMethods
 from graia.broadcast import Broadcast
 
-from msgdb import writeid, writeqqmsg
+from msgdb import writeid, writeqqmsg, writedcuser
 
 cp = ConfigParser()
 cp.read(abspath("./config.cfg"))
@@ -112,6 +112,7 @@ async def recv_msg():
                 if j['Type'] == 'QQ':
                     msgchain = MessageChain.create([])
                     text = j['Text']
+                    writedcuser(j['Name'], j['UID'])
                     if 'Nick' in j:
                         displayname = f'{j["Nick"]}({j["Name"]})'
                     else:
@@ -199,6 +200,7 @@ async def revokeevent(event: GroupRecallEvent):
                 cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
                 for x in cc:
                     msg = x[1]
+                msg = re.sub('@', '\@', msg)
                 await dc_debug_webhook(f'{event.authorId} 撤回了一条消息： {msg}', '[QQ]')
             except Exception:
                 traceback.print_exc()
@@ -230,11 +232,24 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             for at in ats:
                 atId = at.target
                 atdis = f'@[QQ: {atId}]'
-                print(atdis, f'@[QQ: {qq}]')
-                if atdis == f'@[QQ: {qq}]':
+                if atId == qq:
                     print(newquotetarget)
                     if newquotetarget != None:
-                        atdis = f'@{newquotetarget} '
+                        mat = re.match(r'.*\((.*)\)', newquotetarget)
+                        if mat:
+                            newquotetarget = mat.group(1)
+                        try:
+                            c = connect_db('./dcname.db')
+                            cc = c.execute("SELECT * FROM DCNAME WHERE NAME=?", (newquotetarget,))
+                            for x in cc:
+                                print(x)
+                                newquotetarget = f'<@!{x[1]}>'
+                        except:
+                            pass
+                        atdis = newquotetarget
+                else:
+                    getnickname = await app.getMember(target_qqgroup, atId)
+                    atdis = f'{atdis} {getnickname.name}'
                 if atdis not in msglist:
                     msglist.append(atdis)
             atalls = message.get(AtAll)

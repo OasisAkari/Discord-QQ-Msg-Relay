@@ -9,11 +9,9 @@ from os.path import abspath
 
 import aiohttp
 import discord
-import websockets
 from discord import Webhook, AsyncWebhookAdapter
 
 client = discord.Client()
-
 
 cp = ConfigParser()
 cp.read(abspath("./config.cfg"))
@@ -29,11 +27,13 @@ if debug == True:
 else:
     debug_webhook_link = None
 
+
 def connect_db(path):
     dbpath = os.path.abspath(path)
     conn = sqlite3.connect(dbpath)
     c = conn.cursor()
     return c
+
 
 async def dc_debug_webhook(message, username, avatar_url=None):
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(5)) as session:
@@ -86,6 +86,11 @@ async def on_message(message):
                         messages += f'[<ImageURL:{message.attachments[0].proxy_url}>]'
                     except Exception:
                         pass
+                    atfind = re.findall(r'<@!.*>', messages)
+                    for at in atfind:
+                        a = re.match(r'<@!(.*)>', at)
+                        fetch_user = await client.fetch_user(int(a.group(1)))
+                        messages = re.sub(at, f'@{fetch_user.name}', messages)
                     dst = {}
                     dst['Type'] = 'QQ'
                     dst['UID'] = str(message.author.id)
@@ -97,10 +102,15 @@ async def on_message(message):
                     print(dst)
                     j = json.dumps(dst)
                     await websocket.send(j)
+
+
 import websockets
+
+
 @client.event
 async def on_connect():
     await connectws()
+
 
 async def connectws():
     while True:
@@ -143,5 +153,6 @@ async def on_message_delete(message):
             j = json.dumps(dst)
             await websocket.send(j)
             await websocket.close()
+
 
 asyncio.create_task(client.run(bottoken))
