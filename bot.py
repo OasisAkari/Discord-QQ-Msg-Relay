@@ -243,10 +243,10 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                             cc = c.execute("SELECT * FROM DCNAME WHERE NAME=?", (newquotetarget,))
                             for x in cc:
                                 print(x)
-                                newquotetarget = f'<@!{x[1]}>'
+                                newquotetarge = f'<@!{x[1]}>'
                         except:
-                            pass
-                        atdis = newquotetarget
+                            newquotetarge = f'@{newquotetarget}'
+                        atdis = newquotetarge
                 else:
                     getnickname = await app.getMember(target_qqgroup, atId)
                     atdis = f'{atdis} {getnickname.name}'
