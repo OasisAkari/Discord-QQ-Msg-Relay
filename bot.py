@@ -117,8 +117,9 @@ async def recv_msg():
                         displayname = f'{j["Nick"]}({j["Name"]})'
                     else:
                         displayname = j["Name"]
-                    text = f'{displayname}: \n{text}'
+                    text = f'{displayname}:\n{text}'
                     text = re.sub('\[<.*:.*>]', '', text)
+                    text = re.sub(r'\r$|\n$', '', text)
                     text = re.split(r'(@\[QQ: .*?].*#0000|@\[QQ: .*?])', text)
                     for ele in text:
                         matele = re.match(r'@\[QQ: (.*?)]', ele)
@@ -217,7 +218,11 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 senderId = quote.senderId
                 orginquote = quote.origin.asDisplay()
                 if senderId != qq:
-                    orginquote = f'{senderId}: \r{orginquote}'
+                    try:
+                        getnickname = await app.getMember(target_qqgroup, senderId)
+                        orginquote = f'{getnickname.name}: \r{orginquote}'
+                    except Exception:
+                        orginquote = f'{senderId}: \r{orginquote}'
                 orginquote = re.sub('\n', '\r', orginquote)
                 quotesplit = orginquote.split('\r')
                 print(quotesplit)
