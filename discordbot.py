@@ -90,7 +90,7 @@ async def on_message(message):
                     for at in atfind:
                         a = re.match(r'<@!(.*)>', at)
                         fetch_user = await client.fetch_user(int(a.group(1)))
-                        messages = re.sub(at, f'@{fetch_user.name}', messages)
+                        messages = re.sub(at, f'@{str(fetch_user)}', messages)
                     dst = {}
                     dst['Type'] = 'QQ'
                     dst['UID'] = str(message.author.id)
