@@ -83,7 +83,15 @@ async def on_message(message):
                             emsglst.append(f'[<ImageURL:{ele["image"]["proxy_url"]}>]')
                     messages += "\n".join(emsglst)
                     try:
-                        messages += f'[<ImageURL:{message.attachments[0].proxy_url}>]'
+                        matchformat = re.match(r'https://.*?/(.*)', message.attachments[0].proxy_url)
+                        if matchformat:
+                            matchformatt = re.match(r'.*\.(.*)', matchformat.group(1))
+                            if matchformatt:
+                                imgfmt = ['png', 'gif', 'jpg', 'jpeg', 'webp', 'ico', 'svg']
+                                if matchformatt.group(1) in imgfmt:
+                                    messages += f'[<ImageURL:{message.attachments[0].proxy_url}>]'
+                                else:
+                                    messages += f'[文件: {message.attachments[0].proxy_url}]'
                     except Exception:
                         pass
                     atfind = re.findall(r'<@!.*>', messages)
