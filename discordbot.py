@@ -169,29 +169,30 @@ async def on_message_edit(before, after):
         if before.id != -1:
             print(before)
             print(after)
-            messages = after.content
-            emojis = re.findall(r'<:.*?:.*?>', messages)
-            for emoji in emojis:
-                a = re.match(r'\<:.*?:(.*?)\>', emoji)
-                if a:
-                    b = 'https://cdn.discordapp.com/emojis/' + a.group(1)
-                    messages = re.sub(emoji, f'[<ImageURL:{b}>]', messages)
-            dst = {}
-            dst['Type'] = 'DCedit'
-            dst['UID'] = str(before.author.id)
-            dst['Name'] = str(before.author)
-            try:
-                if before.author.nick is not None:
-                    dst['Nick'] = before.author.nick
-                    print(dst['Nick'])
-            except AttributeError:
-                pass
-            dst['MID'] = before.id
-            dst['Text'] = messages
-            j = json.dumps(dst)
-            async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-                await websocket.send(j)
-                await websocket.close()
+            if before.content != after.content:
+                messages = after.content
+                emojis = re.findall(r'<:.*?:.*?>', messages)
+                for emoji in emojis:
+                    a = re.match(r'\<:.*?:(.*?)\>', emoji)
+                    if a:
+                        b = 'https://cdn.discordapp.com/emojis/' + a.group(1)
+                        messages = re.sub(emoji, f'[<ImageURL:{b}>]', messages)
+                dst = {}
+                dst['Type'] = 'DCedit'
+                dst['UID'] = str(before.author.id)
+                dst['Name'] = str(before.author)
+                try:
+                    if before.author.nick is not None:
+                        dst['Nick'] = before.author.nick
+                        print(dst['Nick'])
+                except AttributeError:
+                    pass
+                dst['MID'] = before.id
+                dst['Text'] = messages
+                j = json.dumps(dst)
+                async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
+                    await websocket.send(j)
+                    await websocket.close()
 
 
 client.run(bottoken)
