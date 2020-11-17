@@ -154,13 +154,37 @@ async def connectws():
 @client.event
 async def on_message_delete(message):
     if message.id != -1:
+        dst = {}
+        dst['Type'] = 'DCdelete'
+        dst['MID'] = message.id
+        j = json.dumps(dst)
         async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-            dst = {}
-            dst['Type'] = 'DCdelete'
-            dst['MID'] = message.id
-            j = json.dumps(dst)
             await websocket.send(j)
             await websocket.close()
 
 
-asyncio.create_task(client.run(bottoken))
+@client.event
+async def on_message_edit(before, after):
+    if before.channel.id == channelid:
+        if before.id != -1:
+            print(before)
+            print(after)
+            dst = {}
+            dst['Type'] = 'DCedit'
+            dst['UID'] = str(before.author.id)
+            dst['Name'] = str(before.author)
+            try:
+                if before.author.nick is not None:
+                    dst['Nick'] = before.author.nick
+                    print(dst['Nick'])
+            except AttributeError:
+                pass
+            dst['MID'] = before.id
+            dst['Text'] = after.content
+            j = json.dumps(dst)
+            async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
+                await websocket.send(j)
+                await websocket.close()
+
+
+client.run(bottoken)

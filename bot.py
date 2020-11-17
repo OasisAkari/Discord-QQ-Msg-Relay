@@ -29,7 +29,7 @@ section = cp.sections()[0]
 loop = asyncio.get_event_loop()
 
 qq = int(cp.get(section, 'qq'))
-bcc = Broadcast(loop=loop, debug_flag=False)
+bcc = Broadcast(loop=loop, debug_flag=True)
 app = GraiaMiraiApplication(
     broadcast=bcc,
     connect_info=Session(
@@ -96,7 +96,7 @@ async def dc_debug_webhook(message, username, avatar_url=None):
 
 
 @bcc.receiver("ApplicationLaunched")
-async def runprompt():
+async def ready():
     if debug == True:
         await dc_debug_webhook(f'互联QQ侧机器人已启动。', f'[INFO] QQBOT',
                                'https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
@@ -136,10 +136,11 @@ async def recv_msg():
                             if a:
                                 msgchain2 = msgchain.create(
                                     [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
-                                sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2)
+                                sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2,
+                                                                     quote=j['Quote'] if 'Quote' in j else None)
                                 msgid += f'|{sendimg.messageId}'
                     except Exception:
-                        pass
+                        traceback.print_exc()
                     writeid(j['MID'], msgid)
                 elif j['Type'] == 'Discord':
                     async with aiohttp.ClientSession() as session:
@@ -170,6 +171,28 @@ async def recv_msg():
                                 await app.revokeMessage(msgid)
                             except Exception:
                                 continue
+                elif j['Type'] == 'DCedit':
+                    c = connect_db('./msgdb.db')
+                    cc = c.execute("SELECT * FROM ID WHERE DCID=?", (j['MID'],))
+                    revoke_result = True
+                    for x in cc:
+                        msgids = x[1]
+                        msgids = msgids.split('|')
+                        for msgid in msgids:
+                            await app.revokeMessage(msgid)
+                    dst = {}
+                    dst['Type'] = 'QQ'
+                    dst['UID'] = j['UID']
+                    dst['Name'] = j['Name']
+                    if 'Nick' in j:
+                        dst['Nick'] = j['Nick']
+                    dst['MID'] = j['MID']
+                    dst['Text'] = j['Text'] + '\n（已编辑）'
+                    if revoke_result == False:
+                        dst['Quote'] = msgids[0]
+                    j = json.dumps(dst)
+                    print(j)
+                    await websocket.send(j)
                     c.close()
             except websockets.exceptions.ConnectionClosedOK:
                 pass
@@ -178,39 +201,11 @@ async def recv_msg():
                 continue
 
 
-async def sendmsg(message):
-    async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-        message = '!:!:!:wqwqw!qwqwq'.join(message)
-        await websocket.send('[Discord]' + message)
-        await websocket.close()
-
-
-@bcc.receiver("GroupRecallEvent")
-async def revokeevent(event: GroupRecallEvent):
-    async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-        dst = {}
-        dst['Type'] = 'QQrecall'
-        dst['MID'] = event.messageId
-        j = json.dumps(dst)
-        await websocket.send(j)
-        await websocket.close()
-    if debug == True:
-        if event.group.id == target_qqgroup:
-            try:
-                c = connect_db('./qqmsg.db')
-                cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
-                for x in cc:
-                    msg = x[1]
-                msg = re.sub('@', '\@', msg)
-                await dc_debug_webhook(f'{event.authorId} 撤回了一条消息： {msg}', '[QQ]')
-            except Exception:
-                traceback.print_exc()
-
-
 @bcc.receiver("GroupMessage")
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
     if group.id == target_qqgroup:
         if message.asDisplay()[0:2] != '//':
+            print(message)
             msglist = []
             newquotetarget = None
             quotes = message.get(Quote)
@@ -290,6 +285,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 msglist.append('[语音]')
             flashimages = message.get(FlashImage)
             for flashimage in flashimages:
+                print(flashimage)
                 msglist.append('[闪照]')
             allmsg = '\n'.join(msglist)
             if debug == True:
@@ -306,5 +302,28 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 await websocket.send(j)
 
 
-loop2 = asyncio.new_event_loop()
-loop2.create_task(app.launch_blocking())
+@bcc.receiver("GroupRecallEvent")
+async def revokeevent(event: GroupRecallEvent):
+    async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
+        if event.authorId != qq:
+            dst = {}
+            dst['Type'] = 'QQrecall'
+            dst['MID'] = event.messageId
+            j = json.dumps(dst)
+            await websocket.send(j)
+            await websocket.close()
+            if debug == True:
+                if event.group.id == target_qqgroup:
+                    print(event.authorId)
+                    try:
+                        c = connect_db('./qqmsg.db')
+                        cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
+                        for x in cc:
+                            msg = x[1]
+                        msg = re.sub('@', '\@', msg)
+                        await dc_debug_webhook(f'{event.authorId} 撤回了一条消息： {msg}', '[QQ]')
+                    except Exception:
+                        traceback.print_exc()
+
+
+app.launch_blocking()
