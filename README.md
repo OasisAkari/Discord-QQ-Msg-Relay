@@ -20,6 +20,7 @@ dc_bottoken= Discord Bot token
 debug=False
 debug_webhook_link=None Discord Debug 频道链接。
 ```
+配置完后，分别启动bot.py和discordbot.py即可
 # TODO
 - [x] 文字、图片的转发
 - [x] 转发内容引用提示
