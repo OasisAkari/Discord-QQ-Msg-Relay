@@ -108,6 +108,7 @@ async def recv_msg():
         while True:
             recv_text = await websocket.recv()
             j = json.loads(recv_text)
+            print(j)
             try:
                 if j['Type'] == 'QQ':
                     msgchain = MessageChain.create([])
@@ -191,7 +192,6 @@ async def recv_msg():
                     if revoke_result == False:
                         dst['Quote'] = msgids[0]
                     j = json.dumps(dst)
-                    print(j)
                     await websocket.send(j)
                     c.close()
             except websockets.exceptions.ConnectionClosedOK:
@@ -215,11 +215,12 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 if senderId != qq:
                     try:
                         getnickname = await app.getMember(target_qqgroup, senderId)
-                        orginquote = f'{getnickname.name}: \r{orginquote}'
+                        getnickname = re.sub(r'(\*|_|`|~~)', r'\\\1', getnickname.name)
+                        orginquote = f'{getnickname}: \n{orginquote}'
                     except Exception:
-                        orginquote = f'{senderId}: \r{orginquote}'
-                orginquote = re.sub('\n', '\r', orginquote)
-                quotesplit = orginquote.split('\r')
+                        orginquote = f'{senderId}: \n{orginquote}'
+                orginquote = re.sub('\r', '\n', orginquote)
+                quotesplit = orginquote.split('\n')
                 print(quotesplit)
                 nfquote = []
                 for x in quotesplit:
@@ -233,7 +234,6 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 atId = at.target
                 atdis = f'@[QQ: {atId}]'
                 if atId == qq:
-                    print(newquotetarget)
                     if newquotetarget != None:
                         mat = re.match(r'.*\((.*)\)', newquotetarget)
                         if mat:
@@ -250,7 +250,8 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 else:
                     try:
                         getnickname = await app.getMember(target_qqgroup, atId)
-                        atdis = f'{atdis} {getnickname.name}'
+                        getnickname = re.sub(r'(\*|_|`|~~)', r'\\\1', getnickname.name)
+                        atdis = f'{atdis} {getnickname}'
                     except Exception:
                         pass
                 if atdis not in msglist:
