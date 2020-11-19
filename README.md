@@ -4,8 +4,11 @@
 ![Img](https://github.com/Teahouse-Studios/Discord-QQ-Msg-Relay/blob/main/20201117144204.png?raw=true)
 # 配置
 本项目QQ侧机器人基于[Graia](https://github.com/GraiaProject/Application)，通过[Mirai-API-Http](https://github.com/project-mirai/mirai-api-http)以[mirai](https://github.com/mamoe/mirai)充当无头客户端的形式与主程序交流。
+
 Discord侧以[Discord.py](https://github.com/Rapptz/discord.py)与Discord进行获取信息，以Discord WebHook特性进行发送消息。
+
 以 `Websockets` 库进行信息交换。
+
 你需要先配置好以上环境、获取到Discord的Bot token后继续。
 `config.cfg`的内容注解：
 ```
