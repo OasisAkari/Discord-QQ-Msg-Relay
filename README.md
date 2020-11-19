@@ -24,8 +24,8 @@ debug_webhook_link=None Discord Debug 频道链接。
 # TODO
 - [x] 文字、图片的转发
 - [x] 转发内容引用提示
-- [ ] Xml/Json 等富文本支持
-- [ ] 表情适配
+- [ ] QQ Xml/Json 等富文本支持
+- [ ] QQ表情适配
 - [x] Embed 消息转发
 - [x] 消息撤回
-- [ ] 消息编辑
+- [x] 消息编辑
