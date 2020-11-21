@@ -1,15 +1,11 @@
 import asyncio
 import json
-import os
 import re
-import sqlite3
 import traceback
 from configparser import ConfigParser
 from os.path import abspath
-
-import aiohttp
 import discord
-from discord import Webhook, AsyncWebhookAdapter
+import helper
 
 client = discord.Client()
 
@@ -28,33 +24,18 @@ else:
     debug_webhook_link = None
 
 
-def connect_db(path):
-    dbpath = os.path.abspath(path)
-    conn = sqlite3.connect(dbpath)
-    c = conn.cursor()
-    return c
-
-
-async def dc_debug_webhook(message, username, avatar_url=None):
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(5)) as session:
-        webhook = Webhook.from_url(debug_webhook_link
-                                   ,
-                                   adapter=AsyncWebhookAdapter(session))
-        await webhook.send(message, username=username,
-                           avatar_url=avatar_url)
-
-
 @client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
     if debug == True:
-        await dc_debug_webhook(f'互联DC侧机器人已启动。', f'[INFO] DCBOT')
+        await helper.dc_debug_webhook(debug_webhook_link, f'互联DC侧机器人已启动。', f'[INFO] DCBOT')
 
 
 @client.event
 async def on_message(message):
     botfliter = re.match(r'^\[QQ: (.*?)\].*?#0000$', str(message.author))
     if not botfliter:
+        print(message)
         if message.channel.id == channelid:
             async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
                 messages = message.content
@@ -117,10 +98,6 @@ import websockets
 
 @client.event
 async def on_connect():
-    await connectws()
-
-
-async def connectws():
     while True:
         try:
             async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
@@ -130,7 +107,7 @@ async def connectws():
                         j = json.loads(recv_text)
                         if j['Type'] == 'QQrecall':
                             channel = client.get_channel(channelid)
-                            c = connect_db('./msgdb.db')
+                            c = helper.connect_db('./msgid.db')
                             cc = c.execute("SELECT * FROM ID WHERE QQID=?", (j['MID'],))
                             for x in cc:
                                 msgid = x[0]
@@ -158,9 +135,7 @@ async def on_message_delete(message):
         dst['Type'] = 'DCdelete'
         dst['MID'] = message.id
         j = json.dumps(dst)
-        async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-            await websocket.send(j)
-            await websocket.close()
+        await helper.sendtoWebsocket(websocket_port, j)
 
 
 @client.event
@@ -190,9 +165,7 @@ async def on_message_edit(before, after):
                 dst['MID'] = before.id
                 dst['Text'] = messages
                 j = json.dumps(dst)
-                async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-                    await websocket.send(j)
-                    await websocket.close()
+                await helper.sendtoWebsocket(websocket_port, j)
 
 
 client.run(bottoken)

@@ -1,8 +1,6 @@
 import asyncio
 import json
-import os
 import re
-import sqlite3
 import traceback
 from configparser import ConfigParser
 from os.path import abspath
@@ -20,7 +18,7 @@ from graia.application.message.elements.internal import Plain, Image, FlashImage
 from graia.application.message.elements.internal import UploadMethods
 from graia.broadcast import Broadcast
 
-from msgdb import writeid, writeqqmsg, writedcuser
+import helper
 
 cp = ConfigParser()
 cp.read(abspath("./config.cfg"))
@@ -45,21 +43,15 @@ webhook_link = cp.get(section, 'webhook_link')
 websocket_port = cp.get(section, 'websocket_port')
 debug = cp.get(section, 'debug')
 print(debug)
-if debug == 'True':
+if debug == 'True' or '1':
     debug = True
+
 if debug == True:
     debug_webhook_link = cp.get(section, 'debug_webhook_link')
 else:
     debug_webhook_link = None
 
 CLIENTS = set()
-
-
-def connect_db(path):
-    dbpath = os.path.abspath(path)
-    conn = sqlite3.connect(dbpath)
-    c = conn.cursor()
-    return c
 
 
 async def msgbroadcast(msg):
@@ -86,20 +78,11 @@ async def start_websocket():
     await websockets.serve(msgbroadcast_handler, '127.0.0.1', websocket_port)
 
 
-async def dc_debug_webhook(message, username, avatar_url=None):
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(5)) as session:
-        webhook = Webhook.from_url(debug_webhook_link
-                                   ,
-                                   adapter=AsyncWebhookAdapter(session))
-        await webhook.send(message, username=username,
-                           avatar_url=avatar_url)
-
-
 @bcc.receiver("ApplicationLaunched")
 async def ready():
     if debug == True:
-        await dc_debug_webhook(f'互联QQ侧机器人已启动。', f'[INFO] QQBOT',
-                               'https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
+        await helper.dc_debug_webhook(debug_webhook_link, f'互联QQ侧机器人已启动。', f'[INFO] QQBOT',
+                                      'https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
 
 
 @bcc.receiver("ApplicationLaunched", priority=10)
@@ -113,7 +96,7 @@ async def recv_msg():
                 if j['Type'] == 'QQ':
                     msgchain = MessageChain.create([])
                     text = j['Text']
-                    writedcuser(j['Name'], j['UID'])
+                    helper.writedcuser(j['Name'], j['UID'])
                     if 'Nick' in j:
                         displayname = f'{j["Nick"]}({j["Name"]})'
                     else:
@@ -142,8 +125,8 @@ async def recv_msg():
                                 msgid += f'|{sendimg.messageId}'
                     except Exception:
                         traceback.print_exc()
-                    writeid(j['MID'], msgid)
-                elif j['Type'] == 'Discord':
+                    helper.writeid(j['MID'], msgid)
+                if j['Type'] == 'Discord':
                     async with aiohttp.ClientSession() as session:
                         webhook = Webhook.from_url(webhook_link
                                                    ,
@@ -160,9 +143,9 @@ async def recv_msg():
                                                   avatar_url=qqavatarlink,
                                                   allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
                                                   wait=True)
-                        writeid(send.id, j["MID"])
-                elif j['Type'] == 'DCdelete':
-                    c = connect_db('./msgdb.db')
+                        helper.writeid(send.id, j["MID"])
+                if j['Type'] == 'DCdelete':
+                    c = helper.connect_db('./msgid.db')
                     cc = c.execute("SELECT * FROM ID WHERE DCID=?", (j['MID'],))
                     for x in cc:
                         msgids = x[1]
@@ -172,8 +155,8 @@ async def recv_msg():
                                 await app.revokeMessage(msgid)
                             except Exception:
                                 continue
-                elif j['Type'] == 'DCedit':
-                    c = connect_db('./msgdb.db')
+                if j['Type'] == 'DCedit':
+                    c = helper.connect_db('./msgid.db')
                     cc = c.execute("SELECT * FROM ID WHERE DCID=?", (j['MID'],))
                     revoke_result = True
                     for x in cc:
@@ -239,7 +222,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                         if mat:
                             newquotetarget = mat.group(1)
                         try:
-                            c = connect_db('./dcname.db')
+                            c = helper.connect_db('./dcname.db')
                             cc = c.execute("SELECT * FROM DCNAME WHERE NAME=?", (newquotetarget,))
                             for x in cc:
                                 print(x)
@@ -271,13 +254,13 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 msglist.append(f'[表情{face.faceId}]')
             xmls = message.get(Xml)
             for xml in xmls:
-                msglist.append('[Xml消息]')
+                msglist.append(f'[Xml消息]\n```\n{xml}\n```')
             jsons = message.get(Json)
             for jsonn in jsons:
-                msglist.append('[Json消息]')
+                msglist.append(f'[Json消息]\n```\n{jsonn}\n```')
             apps = message.get(App)
             for appp in apps:
-                msglist.append('[App消息]')
+                msglist.append(f'[App消息]\n```\n{appp}\n```')
             pokes = message.get(Poke)
             for poke in pokes:
                 msglist.append('[戳一戳]')
@@ -286,11 +269,10 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 msglist.append('[语音]')
             flashimages = message.get(FlashImage)
             for flashimage in flashimages:
-                print(flashimage)
                 msglist.append('[闪照]')
             allmsg = '\n'.join(msglist)
             if debug == True:
-                writeqqmsg(message[Source][0].id, allmsg)
+                helper.writeqqmsg(message[Source][0].id, allmsg)
             dst = {}
             dst['Type'] = 'Discord'
             dst['UID'] = str(member.id)
@@ -298,33 +280,29 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             dst['MID'] = str(message[Source][0].id)
             dst['Text'] = allmsg
             j = json.dumps(dst)
-            async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-                print(j)
-                await websocket.send(j)
+            await helper.sendtoWebsocket(websocket_port, j)
 
 
 @bcc.receiver("GroupRecallEvent")
 async def revokeevent(event: GroupRecallEvent):
-    async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-        if event.authorId != qq:
-            dst = {}
-            dst['Type'] = 'QQrecall'
-            dst['MID'] = event.messageId
-            j = json.dumps(dst)
-            await websocket.send(j)
-            await websocket.close()
-            if debug == True:
-                if event.group.id == target_qqgroup:
-                    print(event.authorId)
-                    try:
-                        c = connect_db('./qqmsg.db')
-                        cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
-                        for x in cc:
-                            msg = x[1]
-                        msg = re.sub('@', '\@', msg)
-                        await dc_debug_webhook(f'{event.authorId} 撤回了一条消息： {msg}', '[QQ]')
-                    except Exception:
-                        traceback.print_exc()
+    if event.authorId != qq:
+        dst = {}
+        dst['Type'] = 'QQrecall'
+        dst['MID'] = event.messageId
+        j = json.dumps(dst)
+        await helper.sendtoWebsocket(websocket_port, j)
+        if debug == True:
+            if event.group.id == target_qqgroup:
+                print(event.authorId)
+                try:
+                    c = helper.connect_db('./qqmsg.db')
+                    cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
+                    for x in cc:
+                        msg = x[1]
+                    msg = re.sub('@', '\@', msg)
+                    await helper.dc_debug_webhook(debug_webhook_link, f'{event.authorId} 撤回了一条消息： {msg}', '[QQ]')
+                except Exception:
+                    traceback.print_exc()
 
 
 app.launch_blocking()
