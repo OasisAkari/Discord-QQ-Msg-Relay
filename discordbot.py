@@ -84,8 +84,11 @@ async def on_message(message):
                     dst['Type'] = 'QQ'
                     dst['UID'] = str(message.author.id)
                     dst['Name'] = str(message.author)
-                    if message.author.nick is not None:
-                        dst['Nick'] = message.author.nick
+                    try:
+                        if message.author.nick is not None:
+                            dst['Nick'] = message.author.nick
+                    except Exception:
+                        pass
                     dst['MID'] = str(message.id)
                     dst['Text'] = messages
                     print(dst)
@@ -159,7 +162,6 @@ async def on_message_edit(before, after):
                 try:
                     if before.author.nick is not None:
                         dst['Nick'] = before.author.nick
-                        print(dst['Nick'])
                 except AttributeError:
                     pass
                 dst['MID'] = before.id
