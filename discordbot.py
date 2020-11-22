@@ -6,6 +6,7 @@ from configparser import ConfigParser
 from os.path import abspath
 import discord
 import helper
+import websockets
 
 client = discord.Client()
 
@@ -94,9 +95,6 @@ async def on_message(message):
                     print(dst)
                     j = json.dumps(dst)
                     await websocket.send(j)
-
-
-import websockets
 
 
 @client.event
