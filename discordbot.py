@@ -63,7 +63,7 @@ async def on_message(message):
                             emsglst.append(ele['footer']['text'])
                         if 'image' in ele:
                             emsglst.append(f'[<ImageURL:{ele["image"]["proxy_url"]}>]')
-                    messages += "\n".join(emsglst)
+                    messages += "\n" + "\n".join(emsglst)
                     try:
                         matchformat = re.match(r'https://.*?/(.*)', message.attachments[0].proxy_url)
                         if matchformat:
