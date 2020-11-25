@@ -56,7 +56,7 @@ async def on_message(message):
                             emsglst.append(ele['url'])
                         if 'fields' in ele:
                             for field_value in ele['fields']:
-                                emsglst.append(field_value['name'] + field_value['value'])
+                                emsglst.append(field_value['name'] + '\n' + field_value['value'])
                         if 'description' in ele:
                             emsglst.append(ele['description'])
                         if 'footer' in ele:
