@@ -161,43 +161,34 @@ async def recv_msg():
                             except Exception:
                                 continue
                     c.close()
-                if j['Type'] == 'DCedit':
+                if j['Type'] == 'QQrecallI':
                     c = helper.connect_db('./msgid.db')
-                    cc = c.execute("SELECT * FROM ID WHERE DCID=?", (j['MID'],))
-                    revoke_result = True
+                    cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{j['MID']}%'")
                     for x in cc:
+                        print(x)
                         msgids = x[1]
                         msgids = msgids.split('|')
-                        for msgid in msgids:
-                            await app.revokeMessage(msgid)
-                    dst = {}
-                    dst['Type'] = 'QQ'
-                    dst['UID'] = j['UID']
-                    dst['Name'] = j['Name']
-                    if 'Nick' in j:
-                        dst['Nick'] = j['Nick']
-                    dst['MID'] = j['MID']
-                    dst['Text'] = j['Text'] + '\n（已编辑）'
-                    if not revoke_result:
-                        dst['Quote'] = msgids[0]
-                    j = json.dumps(dst)
-                    await websocket.send(j)
+                        for x in msgids:
+                            if x != j['MID']:
+                                try:
+                                    await app.revokeMessage(x)
+                                except Exception:
+                                    traceback.print_exc()
                     c.close()
-                if j['Type'] == 'QQrecall':
-                    if j['UID'] == qq:
-                        c = helper.connect_db('./msgid.db')
-                        cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
-                        for x in cc:
-                            print(x)
-                            msgids = x[1]
-                            msgids = msgids.split('|')
-                            for x in msgids:
-                                if x != j['MID']:
-                                    try:
-                                        await app.revokeMessage(x)
-                                    except Exception:
-                                        traceback.print_exc()
-                        c.close()
+                if j['Type'] == 'QQrecallP':
+                    c = helper.connect_db('./msgid.db')
+                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
+                    for x in cc:
+                        print(x)
+                        msgids = x[1]
+                        msgids = msgids.split('|')
+                        for x in msgids:
+                            if x != j['MID']:
+                                try:
+                                    await app.revokeMessage(x)
+                                except Exception:
+                                    traceback.print_exc()
+                    c.close()
             except websockets.exceptions.ConnectionClosedOK:
                 pass
             except Exception:
@@ -309,13 +300,14 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
 async def revokeevent(event: GroupRecallEvent):
     print(event)
     if event.group.id == target_qqgroup:
-        if event.authorId != qq:
-            dst = {}
-            dst['Type'] = 'QQrecall'
-            dst['MID'] = event.messageId
-            dst['UID'] = event.authorId
-            j = json.dumps(dst)
-            await helper.sendtoWebsocket(websocket_port, j)
+        dst = {}
+        dst['Type'] = 'QQrecall'
+        dst['MID'] = event.messageId
+        dst['UID'] = event.authorId
+        if event.authorId == qq:
+            dst['Edit'] = True
+        j = json.dumps(dst)
+        await helper.sendtoWebsocket(websocket_port, j)
         if debug:
             print(event.authorId)
             try:

@@ -154,7 +154,7 @@ async def on_message_edit(before, after):
                         b = 'https://cdn.discordapp.com/emojis/' + a.group(1)
                         messages = re.sub(emoji, f'[<ImageURL:{b}>]', messages)
                 dst = {}
-                dst['Type'] = 'DCedit'
+                dst['Type'] = 'QQrecallI'
                 dst['UID'] = str(before.author.id)
                 dst['Name'] = str(before.author)
                 try:
@@ -163,9 +163,13 @@ async def on_message_edit(before, after):
                 except AttributeError:
                     pass
                 dst['MID'] = before.id
-                dst['Text'] = messages
+                dst['Text'] = messages + '\n（已编辑）'
                 j = json.dumps(dst)
                 await helper.sendtoWebsocket(websocket_port, j)
+                dst['Type'] = 'QQ'
+                j = json.dumps(dst)
+                await helper.sendtoWebsocket(websocket_port, j)
+
 
 
 client.run(bottoken)
