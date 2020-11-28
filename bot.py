@@ -309,12 +309,13 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
 async def revokeevent(event: GroupRecallEvent):
     print(event)
     if event.group.id == target_qqgroup:
-        dst = {}
-        dst['Type'] = 'QQrecall'
-        dst['MID'] = event.messageId
-        dst['UID'] = event.authorId
-        j = json.dumps(dst)
-        await helper.sendtoWebsocket(websocket_port, j)
+        if event.authorId != qq:
+            dst = {}
+            dst['Type'] = 'QQrecall'
+            dst['MID'] = event.messageId
+            dst['UID'] = event.authorId
+            j = json.dumps(dst)
+            await helper.sendtoWebsocket(websocket_port, j)
         if debug:
             print(event.authorId)
             try:
