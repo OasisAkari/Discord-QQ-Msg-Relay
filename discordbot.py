@@ -109,7 +109,7 @@ async def on_connect():
                         if j['Type'] == 'QQrecall':
                             channel = client.get_channel(channelid)
                             c = helper.connect_db('./msgid.db')
-                            cc = c.execute("SELECT * FROM ID WHERE QQID=?", (j['MID'],))
+                            cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
                             for x in cc:
                                 msgid = x[0]
                             try:
