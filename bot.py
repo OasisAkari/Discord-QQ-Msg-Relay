@@ -163,29 +163,29 @@ async def recv_msg():
                     c.close()
                 if j['Type'] == 'QQrecallI':
                     c = helper.connect_db('./msgid.db')
-                    cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{j['MID']}%'")
+                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
                     for x in cc:
-                        print(x)
                         msgids = x[1]
+                        print(msgids)
                         msgids = msgids.split('|')
-                        for x in msgids:
-                            if x != j['MID']:
+                        for y in msgids:
+                            if y != j['MID']:
                                 try:
-                                    await app.revokeMessage(x)
+                                    await app.revokeMessage(y)
                                 except Exception:
                                     traceback.print_exc()
                     c.close()
-                if j['Type'] == 'QQrecallP':
+                if j['Type'] == 'QQrecallD':
                     c = helper.connect_db('./msgid.db')
-                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
+                    cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{j['MID']}%'")
                     for x in cc:
-                        print(x)
                         msgids = x[1]
+                        print(msgids)
                         msgids = msgids.split('|')
-                        for x in msgids:
-                            if x != j['MID']:
+                        for y in msgids:
+                            if y != j['MID']:
                                 try:
-                                    await app.revokeMessage(x)
+                                    await app.revokeMessage(y)
                                 except Exception:
                                     traceback.print_exc()
                     c.close()
@@ -301,11 +301,12 @@ async def revokeevent(event: GroupRecallEvent):
     print(event)
     if event.group.id == target_qqgroup:
         dst = {}
-        dst['Type'] = 'QQrecall'
+        if event.authorId != qq:
+            dst['Type'] = 'QQrecall'
+        else:
+            dst['Type'] = 'QQrecallI'
         dst['MID'] = event.messageId
         dst['UID'] = event.authorId
-        if event.authorId == qq:
-            dst['Edit'] = True
         j = json.dumps(dst)
         await helper.sendtoWebsocket(websocket_port, j)
         if debug:

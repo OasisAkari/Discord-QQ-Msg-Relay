@@ -154,7 +154,7 @@ async def on_message_edit(before, after):
                         b = 'https://cdn.discordapp.com/emojis/' + a.group(1)
                         messages = re.sub(emoji, f'[<ImageURL:{b}>]', messages)
                 dst = {}
-                dst['Type'] = 'QQrecallI'
+                dst['Type'] = 'QQrecallD'
                 dst['UID'] = str(before.author.id)
                 dst['Name'] = str(before.author)
                 try:
