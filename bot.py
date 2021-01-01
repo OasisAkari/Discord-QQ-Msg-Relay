@@ -27,6 +27,7 @@ section = cp.sections()[0]
 target_qqgroup = int(cp.get(section, 'qqgroup'))
 webhook_link = cp.get(section, 'webhook_link')
 websocket_port = cp.get(section, 'websocket_port')
+face_link = cp.get(section, 'face_link')
 debug = cp.get(section, 'debug')
 if debug == 'True' or '1':
     debug = True
@@ -263,7 +264,10 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 msglist.append(img.url)
             faces = message.get(Face)
             for face in faces:
-                msglist.append(f'[表情{face.faceId}]')
+                if face_link != 'None':
+                    msglist.append(f'{face_link}s{face.faceId}.gif')
+                else:
+                    msglist.append(f'[表情{face.faceId}]')
             xmls = message.get(Xml)
             for xml in xmls:
                 msglist.append(f'[Xml消息]\n```\n{xml}\n```')
