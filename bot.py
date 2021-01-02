@@ -17,7 +17,7 @@ from graia.application.message.elements.internal import Plain, Image, FlashImage
     Poke, Voice, Quote, Face, Source
 from graia.application.message.elements.internal import UploadMethods
 from graia.broadcast import Broadcast
-
+from datetime import datetime, timedelta, timezone
 import helper
 
 cp = ConfigParser()
@@ -29,6 +29,8 @@ webhook_link = cp.get(section, 'webhook_link')
 websocket_port = cp.get(section, 'websocket_port')
 face_link = cp.get(section, 'face_link')
 debug = cp.get(section, 'debug')
+channelid = int(cp.get(section, 'dc_channel'))
+serverid = int(cp.get(section, 'dc_server'))
 if debug == 'True' or '1':
     debug = True
 else:
@@ -145,6 +147,23 @@ async def recv_msg():
                                 qqavatarlink = qqavatarlink.group(1)
                             except Exception:
                                 qqavatarlink = None
+                        if 'Quote' in j:
+                            c = helper.connect_db('msgid.db')
+                            cc = c.execute("SELECT * FROM ID WHERE QQID=?", (j['Quote']['MID'],))
+                            for x in cc:
+                                msgids = x[0]
+                                msgids = msgids.split('|')
+                                msgid = msgids[0]
+                            embed = discord.Embed.from_dict({
+    "description": f"{j['Quote']['Name']}  {j['Quote']['Time']}  [[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})",
+    "footer": {"text": f"{j['Quote']['Text']}"},
+})
+                            embed.color = 0x4F545C
+                            await webhook.send(username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                               avatar_url=qqavatarlink,
+                                               allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
+                                               embed=embed
+                                               )
                         send = await webhook.send(j["Text"], username=f'[QQ: {j["UID"]}] {j["Name"]}',
                                                   avatar_url=qqavatarlink,
                                                   allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
@@ -201,30 +220,35 @@ async def recv_msg():
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
     if group.id == target_qqgroup:
         if message.asDisplay()[0:2] != '//':
+            dst = {}
             print(message)
             msglist = []
             newquotetarget = None
             quotes = message.get(Quote)
             for quote in quotes:
+                Quotet = {}
                 senderId = quote.senderId
                 orginquote = quote.origin.asDisplay()
                 if senderId != qq:
                     try:
                         getnickname = await app.getMember(target_qqgroup, senderId)
                         getnickname = re.sub(r'(\*|_|`|~~)', r'\\\1', getnickname.name)
-                        orginquote = f'{getnickname}: \n{orginquote}'
+                        Quotet['Name'] = getnickname
                     except Exception:
-                        orginquote = f'{senderId}: \n{orginquote}'
+                        Quotet['Name'] = senderId
+                else:
+                    newquotetargetre = re.match(r'(.*?):.*', orginquote)
+                    if newquotetargetre:
+                        newquotetarget = newquotetargetre.group(1)
+                        Quotet['Name'] = newquotetarget
+                        orginquote = re.sub(r'.*?:','',orginquote)
                 orginquote = re.sub('\r', '\n', orginquote)
-                quotesplit = orginquote.split('\n')
-                print(quotesplit)
-                nfquote = []
-                for x in quotesplit:
-                    nfquote.append(f'> {x}')
-                msglist.append('\n'.join(nfquote))
-                newquotetargetre = re.match(r'(.*?):.*', orginquote)
-                if newquotetargetre:
-                    newquotetarget = newquotetargetre.group(1)
+                Quotet['MID'] = quote.id
+                Quotet['Text'] = orginquote
+                time = quote.origin[Source][0].time.astimezone(timezone(timedelta(hours=8)))
+                time = re.sub(r'\+.*','',str(time))
+                Quotet['Time'] = time
+                dst['Quote'] = Quotet
             ats = message.get(At)
             for at in ats:
                 atId = at.target
@@ -290,7 +314,6 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             allmsg = '\n'.join(msglist)
             if debug == True:
                 helper.writeqqmsg(message[Source][0].id, allmsg)
-            dst = {}
             dst['Type'] = 'Discord'
             dst['UID'] = str(member.id)
             dst['Name'] = member.name
