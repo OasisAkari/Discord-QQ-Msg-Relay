@@ -81,6 +81,16 @@ async def on_message(message):
                         a = re.match(r'<@!(.*)>', at)
                         fetch_user = await client.fetch_user(int(a.group(1)))
                         messages = re.sub(at, f'@{str(fetch_user)}', messages)
+                    #strikethrough
+                    findstrike = re.findall(r'~~.*?~~', messages, re.S)
+                    for strike in findstrike:
+                        matchstrike = re.match(r'~~(.*)~~', strike, re.S).group(1)
+                        q = ['']
+                        for x in matchstrike:
+                            q.append(x)
+                        q.append('')
+                        strikemsg = '̶'.join(q)
+                        messages = re.sub(strike, strikemsg, messages)
                     dst = {}
                     dst['Type'] = 'QQ'
                     dst['UID'] = str(message.author.id)
@@ -153,6 +163,15 @@ async def on_message_edit(before, after):
                     if a:
                         b = 'https://cdn.discordapp.com/emojis/' + a.group(1)
                         messages = re.sub(emoji, f'[<ImageURL:{b}>]', messages)
+                findstrike = re.findall(r'~~.*?~~', messages, re.S)
+                for strike in findstrike:
+                    matchstrike = re.match(r'~~(.*)~~', strike, re.S).group(1)
+                    q = ['']
+                    for x in matchstrike:
+                        q.append(x)
+                    q.append('')
+                    strikemsg = '̶'.join(q)
+                    messages = re.sub(strike, strikemsg, messages)
                 dst = {}
                 dst['Type'] = 'QQrecallD'
                 dst['UID'] = str(before.author.id)
