@@ -155,7 +155,7 @@ async def recv_msg():
                                 msgids = msgids.split('|')
                                 msgid = msgids[0]
                             embed = discord.Embed.from_dict({
-    "description": f"{j['Quote']['Name']}  {j['Quote']['Time']}  [[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})",
+    "description": f"{j['Quote']['Name']} | {j['Quote']['Time']}  [[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})",
     "footer": {"text": f"{j['Quote']['Text']}"},
 })
                             embed.color = 0x4F545C
