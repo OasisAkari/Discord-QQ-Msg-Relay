@@ -354,15 +354,15 @@ async def revokeevent(event: GroupRecallEvent):
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
     if group.id == target_qqgroup:
         if message.asDisplay() == '$count':
-            a = len(helper.connect_db('./msgid.db').execute('SELECT * FROM ID').fetchall())
-            b = len(helper.connect_db('./qqmsg.db').execute('SELECT * FROM MSG').fetchall())
-            c = len(helper.connect_db('./dcname.db').execute('SELECT * FROM DCNAME').fetchall())
+            a = helper.connect_db('./msgid.db').execute('SELECT COUNT(*) as cnt FROM ID').fetchone()
+            b = helper.connect_db('./qqmsg.db').execute('SELECT COUNT(*) as cnt FROM MSG').fetchone()
+            c = helper.connect_db('./dcname.db').execute('SELECT COUNT(*) as cnt FROM DCNAME').fetchone()
             d = f'''msgid.db:
-- ID: {a}
+- ID: {a[0]}
 qqmsg.db:
-- MSG: {b}
+- MSG: {b[0]}
 dcname.db:
-- DCNAME: {c}'''
+- DCNAME: {c[0]}'''
             await app.sendGroupMessage(group, MessageChain.create([Plain(d)]))
 
 
