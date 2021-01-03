@@ -3,6 +3,7 @@ import json
 import re
 import traceback
 from configparser import ConfigParser
+from datetime import timedelta, timezone
 from os.path import abspath
 
 import aiohttp
@@ -17,7 +18,7 @@ from graia.application.message.elements.internal import Plain, Image, FlashImage
     Poke, Voice, Quote, Face, Source
 from graia.application.message.elements.internal import UploadMethods
 from graia.broadcast import Broadcast
-from datetime import datetime, timedelta, timezone
+
 import helper
 
 cp = ConfigParser()
@@ -148,16 +149,16 @@ async def recv_msg():
                             except Exception:
                                 qqavatarlink = None
                         if 'Quote' in j:
-                            c = helper.connect_db('msgid.db')
+                            c = helper.connect_db('./msgid.db')
                             cc = c.execute("SELECT * FROM ID WHERE QQID=?", (j['Quote']['MID'],))
                             for x in cc:
                                 msgids = x[0]
                                 msgids = msgids.split('|')
                                 msgid = msgids[0]
                             embed = discord.Embed.from_dict({
-    "description": f"{j['Quote']['Name']} | {j['Quote']['Time']}  [[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})",
-    "footer": {"text": f"{j['Quote']['Text']}"},
-})
+                                "description": f"{j['Quote']['Name']} | {j['Quote']['Time']}  [[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})",
+                                "footer": {"text": f"{j['Quote']['Text']}"},
+                            })
                             embed.color = 0x4F545C
                             await webhook.send(username=f'[QQ: {j["UID"]}] {j["Name"]}',
                                                avatar_url=qqavatarlink,
@@ -241,12 +242,12 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                     if newquotetargetre:
                         newquotetarget = newquotetargetre.group(1)
                         Quotet['Name'] = newquotetarget
-                        orginquote = re.sub(r'.*?:','',orginquote)
+                        orginquote = re.sub(r'.*?:', '', orginquote)
                 orginquote = re.sub('\r', '\n', orginquote)
                 Quotet['MID'] = quote.id
                 Quotet['Text'] = orginquote
                 time = quote.origin[Source][0].time.astimezone(timezone(timedelta(hours=8)))
-                time = re.sub(r'\+.*','',str(time))
+                time = re.sub(r'\+.*', '', str(time))
                 Quotet['Time'] = time
                 dst['Quote'] = Quotet
             ats = message.get(At)
@@ -347,6 +348,22 @@ async def revokeevent(event: GroupRecallEvent):
                 await helper.dc_debug_webhook(debug_webhook_link, f'{event.authorId} 撤回了一条消息： {msg}', '[QQ]')
             except Exception:
                 traceback.print_exc()
+
+
+@bcc.receiver("GroupMessage")
+async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
+    if group.id == target_qqgroup:
+        if message.asDisplay() == '$count':
+            a = len(helper.connect_db('./msgid.db').execute('SELECT * FROM ID').fetchall())
+            b = len(helper.connect_db('./qqmsg.db').execute('SELECT * FROM MSG').fetchall())
+            c = len(helper.connect_db('./dcname.db').execute('SELECT * FROM DCNAME').fetchall())
+            d = f'''msgid.db:
+- ID: {a}
+qqmsg.db:
+- MSG: {b}
+dcname.db:
+- DCNAME: {c}'''
+            await app.sendGroupMessage(group, MessageChain.create([Plain(d)]))
 
 
 app.launch_blocking()
