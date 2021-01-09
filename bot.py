@@ -116,7 +116,8 @@ async def recv_msg():
                             msgchain = msgchain.plusWith(MessageChain.create([At(int(matele.group(1)))]))
                         else:
                             msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
-                    sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain)
+                    sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
+                    quote=j['Quote'] if 'Quote' in j else None)
                     if debug == True:
                         helper.writeqqmsg(sendmsg.messageId, '\n'.join(text))
                     msgid = str(sendmsg.messageId)
@@ -128,7 +129,7 @@ async def recv_msg():
                                 msgchain2 = msgchain.create(
                                     [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
                                 sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2,
-                                                                     quote=j['Quote'] if 'Quote' in j else None)
+                                quote=j['Quote'] if 'Quote' in j else None)
                                 msgid += f'|{sendimg.messageId}'
                                 if debug == True:
                                     helper.writeqqmsg(sendimg.messageId, a.group(1))

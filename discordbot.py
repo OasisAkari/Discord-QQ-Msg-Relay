@@ -50,6 +50,7 @@ async def on_message(message):
                     emsglst = []
                     for embed in message.embeds:
                         ele = embed.to_dict()
+                        print(ele)
                         if 'title' in ele:
                             emsglst.append(ele['title'])
                         if 'url' in ele:
@@ -101,6 +102,13 @@ async def on_message(message):
                     except Exception:
                         pass
                     dst['MID'] = str(message.id)
+                    if message.reference != None:
+                        c = helper.connect_db('./msgid.db')
+                        cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{message.reference.message_id}%'")
+                        for x in cc:
+                            msgids = x[1]
+                            msgids = msgids.split('|')
+                            dst['Quote'] = msgids[0]
                     dst['Text'] = messages
                     print(dst)
                     j = json.dumps(dst)
