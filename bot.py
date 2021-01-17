@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import re
 import traceback
 from configparser import ConfigParser
@@ -32,7 +33,7 @@ face_link = cp.get(section, 'face_link')
 debug = cp.get(section, 'debug')
 channelid = int(cp.get(section, 'dc_channel'))
 serverid = int(cp.get(section, 'dc_server'))
-if debug == 'True' or '1':
+if debug == 'True':
     debug = True
 else:
     debug = False
@@ -356,13 +357,16 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
     if group.id == target_qqgroup:
         if message.asDisplay() == '$count':
             a = helper.connect_db('./msgid.db').execute('SELECT COUNT(*) as cnt FROM ID').fetchone()
+            a1 = round(os.path.getsize('./msgid.db')/float(1024*1024), 2)
             b = helper.connect_db('./qqmsg.db').execute('SELECT COUNT(*) as cnt FROM MSG').fetchone()
+            b1 = round(os.path.getsize('./qqmsg.db') / float(1024 * 1024), 2)
             c = helper.connect_db('./dcname.db').execute('SELECT COUNT(*) as cnt FROM DCNAME').fetchone()
-            d = f'''msgid.db:
+            c1 = round(os.path.getsize('./dcname.db')/float(1024*1024), 2)
+            d = f'''msgid.db({a1}MB):
 - ID: {a[0]}
-qqmsg.db:
+qqmsg.db({b1}MB):
 - MSG: {b[0]}
-dcname.db:
+dcname.db({c1}MB):
 - DCNAME: {c[0]}'''
             await app.sendGroupMessage(group, MessageChain.create([Plain(d)]))
 

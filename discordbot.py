@@ -16,6 +16,7 @@ section = cp.sections()[0]
 channelid = int(cp.get(section, 'dc_channel'))
 bottoken = cp.get(section, 'dc_bottoken')
 websocket_port = cp.get(section, 'websocket_port')
+font_effect = cp.get(section, 'font_effect')
 debug = cp.get(section, 'debug')
 if debug == 'True':
     debug = True
@@ -23,6 +24,11 @@ if debug == True:
     debug_webhook_link = cp.get(section, 'debug_webhook_link')
 else:
     debug_webhook_link = None
+
+if font_effect == 'True':
+    font_effect = True
+else:
+    font_effect = False
 
 
 @client.event
@@ -83,15 +89,16 @@ async def on_message(message):
                         fetch_user = await client.fetch_user(int(a.group(1)))
                         messages = re.sub(at, f'@{str(fetch_user)}', messages)
                     #strikethrough
-                    findstrike = re.findall(r'~~.*?~~', messages, re.S)
-                    for strike in findstrike:
-                        matchstrike = re.match(r'~~(.*)~~', strike, re.S).group(1)
-                        q = ['']
-                        for x in matchstrike:
-                            q.append(x)
-                        q.append('')
-                        strikemsg = '̶'.join(q)
-                        messages = re.sub(strike, strikemsg, messages)
+                    if font_effect:
+                        findstrike = re.findall(r'~~.*?~~', messages, re.S)
+                        for strike in findstrike:
+                            matchstrike = re.match(r'~~(.*)~~', strike, re.S).group(1)
+                            q = ['']
+                            for x in matchstrike:
+                                q.append(x)
+                            q.append('')
+                            strikemsg = '̶'.join(q)
+                            messages = re.sub(strike, strikemsg, messages)
                     dst = {}
                     dst['Type'] = 'QQ'
                     dst['UID'] = str(message.author.id)

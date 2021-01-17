@@ -22,9 +22,10 @@ webhook_link= Discord目标频道的Webhook链接
 dc_server= Discord目标服务器ID
 dc_channel= Discord目标频道ID
 dc_bottoken= Discord Bot token
-debug=False （将调试信息发送至Discord的调试频道）
+debug=False 将调试信息发送至Discord的调试频道
 debug_webhook_link=None Discord Debug 频道链接。（debug不设置为True时不用填）
-face_link=None （表情资源链接，要求表情为s<表情ID>.gif的格式，需要对部分原资源进行转gif处理。~~懒得搞png和gif同时支持了，有点复杂~~留None时表情只会显示ID）
+face_link=None 表情资源链接，要求表情为s<表情ID>.gif的格式，需要对部分原资源进行转gif处理。~~懒得搞png和gif同时支持了，有点复杂~~留None时表情只会显示ID
+font_effect=True 开启文字特效（如删除线文字）
 ```
 配置完后，分别启动bot.py和discordbot.py即可
 # TODO
