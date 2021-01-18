@@ -7,6 +7,7 @@ import signal
 from configparser import ConfigParser
 from datetime import timedelta, timezone
 from os.path import abspath
+import platform
 
 import aiohttp
 import discord
@@ -62,7 +63,7 @@ CLIENTS = set()
 
 
 def timeout_handler(signum, frame):
-    raise AssertionError
+    raise TimeoutError
 
 async def msgbroadcast(msg):
     await asyncio.gather(
@@ -122,19 +123,32 @@ async def recv_msg():
                         else:
                             msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
                     try:
-                        signal.signal(signal.SIGALRM, timeout_handler)
-                        signal.alarm(15)
-                        textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
-                        for elements in textre:
-                            a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
-                            if a:
-                                msgchain = msgchain.plusWith(msgchain.create(
-                                    [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)]))
-                        sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
-                                                             quote=j['Quote'] if 'Quote' in j else None)
-                        msgid = str(sendmsg.messageId)
-                        signal.alarm(0)
-                    except AssertionError:
+                        async def sendmsg(j, msgchain):
+                            textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
+                            for elements in textre:
+                                a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
+                                if a:
+                                    msgchain = msgchain.plusWith(msgchain.create(
+                                        [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)]))
+                            sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
+                                                                 quote=j['Quote'] if 'Quote' in j else None)
+                            msgid = str(sendmsg.messageId)
+                            return msgid
+
+                        if platform.system() == 'Linux':
+                            signal.signal(signal.SIGALRM, timeout_handler)
+                            signal.alarm(15)
+                            msgid = await sendmsg(j, msgchain)
+                            signal.alarm(0)
+                        else:
+                            import eventlet
+                            eventlet.monkey_patch()
+                            try:
+                                with eventlet.Timeout(2):
+                                    msgid = await sendmsg(j, msgchain)
+                            except eventlet.timeout.Timeout:
+                                raise TimeoutError
+                    except (TimeoutError, Exception):
                         traceback.print_exc()
                         sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
                         quote=j['Quote'] if 'Quote' in j else None)
