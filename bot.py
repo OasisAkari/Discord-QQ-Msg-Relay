@@ -3,6 +3,7 @@ import json
 import os
 import re
 import traceback
+import signal
 from configparser import ConfigParser
 from datetime import timedelta, timezone
 from os.path import abspath
@@ -60,6 +61,9 @@ app = GraiaMiraiApplication(
 CLIENTS = set()
 
 
+def timeout_handler(signum, frame):
+    raise AssertionError
+
 async def msgbroadcast(msg):
     await asyncio.gather(
         *[ws.send(msg) for ws in CLIENTS],
@@ -112,30 +116,42 @@ async def recv_msg():
                     text = re.sub(r'\r$|\n$', '', text)
                     text = re.split(r'(@\[QQ: .*?].*#0000|@\[QQ: .*?])', text)
                     for ele in text:
-                        matele = re.match(r'@\[QQ: (.*?)]', ele)
-                        if matele:
-                            msgchain = msgchain.plusWith(MessageChain.create([At(int(matele.group(1)))]))
+                        matat = re.match(r'@\[QQ: (.*?)]', ele)
+                        if matat:
+                            msgchain = msgchain.plusWith(MessageChain.create([At(int(matat.group(1)))]))
                         else:
                             msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
-                    sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
-                    quote=j['Quote'] if 'Quote' in j else None)
-                    if debug == True:
-                        helper.writeqqmsg(sendmsg.messageId, '\n'.join(text))
-                    msgid = str(sendmsg.messageId)
-                    textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
                     try:
+                        signal.signal(signal.SIGALRM, timeout_handler)
+                        signal.alarm(10)
+                        textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
                         for elements in textre:
                             a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
                             if a:
-                                msgchain2 = msgchain.create(
-                                    [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
-                                sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2,
-                                quote=j['Quote'] if 'Quote' in j else None)
-                                msgid += f'|{sendimg.messageId}'
-                                if debug == True:
-                                    helper.writeqqmsg(sendimg.messageId, a.group(1))
+                                msgchain = msgchain.plusWith(msgchain.create(
+                                    [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)]))
+                        sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
+                                                             quote=j['Quote'] if 'Quote' in j else None)
+                        msgid = str(sendmsg.messageId)
                     except Exception:
                         traceback.print_exc()
+                        sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
+                        quote=j['Quote'] if 'Quote' in j else None)
+                        msgid = str(sendmsg.messageId)
+                        textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
+                        try:
+                            for elements in textre:
+                                a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
+                                if a:
+                                    msgchain2 = msgchain.create(
+                                        [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
+                                    sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2,
+                                    quote=j['Quote'] if 'Quote' in j else None)
+                                    msgid += f'|{sendimg.messageId}'
+                                    if debug == True:
+                                        helper.writeqqmsg(msgid, a.group(1))
+                        except Exception:
+                            traceback.print_exc()
                     helper.writeid(j['MID'], msgid)
                 if j['Type'] == 'Discord':
                     async with aiohttp.ClientSession() as session:
@@ -152,8 +168,9 @@ async def recv_msg():
                                 qqavatarlink = None
                         if 'Quote' in j:
                             c = helper.connect_db('./msgid.db')
-                            cc = c.execute("SELECT * FROM ID WHERE QQID=?", (j['Quote']['MID'],))
+                            cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['Quote']['MID']}%'")
                             for x in cc:
+                                print(x)
                                 msgids = x[0]
                                 msgids = msgids.split('|')
                                 msgid = msgids[0]
@@ -233,6 +250,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 senderId = quote.senderId
                 orginquote = quote.origin.asDisplay()
                 if senderId != qq:
+                    Quotet['From'] = 'QQ'
                     try:
                         getnickname = await app.getMember(target_qqgroup, senderId)
                         getnickname = re.sub(r'(\*|_|`|~~)', r'\\\1', getnickname.name)
@@ -240,11 +258,14 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                     except Exception:
                         Quotet['Name'] = senderId
                 else:
+                    Quotet['From'] = 'Discord'
                     newquotetargetre = re.match(r'(.*?):.*', orginquote)
                     if newquotetargetre:
                         newquotetarget = newquotetargetre.group(1)
                         Quotet['Name'] = newquotetarget
                         orginquote = re.sub(r'.*?:', '', orginquote)
+                    else:
+                        Quotet['Name'] = ''
                 orginquote = re.sub('\r', '\n', orginquote)
                 Quotet['MID'] = quote.id
                 Quotet['Text'] = orginquote
