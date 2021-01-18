@@ -123,7 +123,7 @@ async def recv_msg():
                             msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
                     try:
                         signal.signal(signal.SIGALRM, timeout_handler)
-                        signal.alarm(10)
+                        signal.alarm(15)
                         textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
                         for elements in textre:
                             a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
@@ -134,7 +134,7 @@ async def recv_msg():
                                                              quote=j['Quote'] if 'Quote' in j else None)
                         msgid = str(sendmsg.messageId)
                         signal.alarm(0)
-                    except Exception:
+                    except AssertionError:
                         traceback.print_exc()
                         sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
                         quote=j['Quote'] if 'Quote' in j else None)
