@@ -144,7 +144,7 @@ async def recv_msg():
                             import eventlet
                             eventlet.monkey_patch()
                             try:
-                                with eventlet.Timeout(2):
+                                with eventlet.Timeout(15):
                                     msgid = await sendmsg(j, msgchain)
                             except eventlet.timeout.Timeout:
                                 raise TimeoutError
