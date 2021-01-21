@@ -136,10 +136,13 @@ async def recv_msg():
                             return msgid
 
                         if platform.system() == 'Linux':
-                            signal.signal(signal.SIGALRM, timeout_handler)
-                            signal.alarm(15)
-                            msgid = await sendmsg(j, msgchain)
-                            signal.alarm(0)
+                            try:
+                                signal.signal(signal.SIGALRM, timeout_handler)
+                                signal.alarm(15)
+                                msgid = await sendmsg(j, msgchain)
+                                signal.alarm(0)
+                            except:
+                                raise TimeoutError
                         else:
                             import eventlet
                             eventlet.monkey_patch()
