@@ -62,9 +62,6 @@ app = GraiaMiraiApplication(
 CLIENTS = set()
 
 
-def timeout_handler(signum, frame):
-    raise TimeoutError
-
 async def msgbroadcast(msg):
     await asyncio.gather(
         *[ws.send(msg) for ws in CLIENTS],
@@ -123,6 +120,8 @@ async def recv_msg():
                         else:
                             msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
                     try:
+                        def timeout_handler(signum, frame):
+                            raise TimeoutError
                         async def sendmsg(j, msgchain):
                             textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
                             for elements in textre:
