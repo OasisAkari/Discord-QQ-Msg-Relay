@@ -134,22 +134,13 @@ async def recv_msg():
                             msgid = str(sendmsg.messageId)
                             return msgid
 
-                        if platform.system() == 'Linux':
-                            try:
-                                signal.signal(signal.SIGALRM, timeout_handler)
-                                signal.alarm(15)
+                        import eventlet
+                        eventlet.monkey_patch()
+                        try:
+                            with eventlet.Timeout(15):
                                 msgid = await sendmsg(j, msgchain)
-                                signal.alarm(0)
-                            except:
-                                raise TimeoutError
-                        else:
-                            import eventlet
-                            eventlet.monkey_patch()
-                            try:
-                                with eventlet.Timeout(15):
-                                    msgid = await sendmsg(j, msgchain)
-                            except eventlet.timeout.Timeout:
-                                raise TimeoutError
+                        except eventlet.timeout.Timeout:
+                            raise TimeoutError
                     except (TimeoutError, Exception):
                         traceback.print_exc()
                         sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
