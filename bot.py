@@ -8,7 +8,7 @@ from configparser import ConfigParser
 from datetime import timedelta, timezone
 from os.path import abspath
 import platform
-
+import eventlet
 import aiohttp
 import discord
 import websockets
@@ -133,8 +133,6 @@ async def recv_msg():
                                                                  quote=j['Quote'] if 'Quote' in j else None)
                             msgid = str(sendmsg.messageId)
                             return msgid
-
-                        import eventlet
                         eventlet.monkey_patch()
                         try:
                             with eventlet.Timeout(15):
@@ -277,7 +275,10 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 orginquote = re.sub('\r', '\n', orginquote)
                 Quotet['MID'] = quote.id
                 Quotet['Text'] = orginquote
-                time = quote.origin[Source][0].time.astimezone(timezone(timedelta(hours=8)))
+                try:
+                    time = quote.origin[Source][0].time.astimezone(timezone(timedelta(hours=8)))
+                except:
+                    time = ''
                 time = re.sub(r'\+.*', '', str(time))
                 Quotet['Time'] = time
                 dst['Quote'] = Quotet
