@@ -405,11 +405,13 @@ dcname.db({c1}MB):
 - DCNAME: {c[0]}'''
             await app.sendGroupMessage(group, MessageChain.create([Plain(d)]))
         if message.asDisplay() == '谁At我':
-            if debug == True:
-                a = helper.connect_db('./qqmsg.db').execute(f"SELECT ID, MSG FROM MSG WHERE MSG LIKE '%{'@[QQ: ' + str(member.id) + ']'}%'").fetchall()[-1]
-                print(a[0])
-                await app.sendGroupMessage(group, MessageChain.create([Plain('This.')]), quote=int(a[0]))
-
+            try:
+                if debug == True:
+                    a = helper.connect_db('./qqmsg.db').execute(f"SELECT ID, MSG FROM MSG WHERE MSG LIKE '%{'@[QQ: ' + str(member.id) + ']'}%'").fetchall()[-1]
+                    print(a[0])
+                    await app.sendGroupMessage(group, MessageChain.create([Plain('This.')]), quote=int(a[0]))
+            except Exception:
+                await app.sendGroupMessage(group, MessageChain.create([Plain('无法定位。')]))
 
 
 app.launch_blocking()
