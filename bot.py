@@ -97,144 +97,149 @@ async def ready():
 async def recv_msg():
     async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
         while True:
-            recv_text = await websocket.recv()
-            j = json.loads(recv_text)
-            print(j)
+            eventlet.monkey_patch()
             try:
-                if j['Type'] == 'QQ':
-                    msgchain = MessageChain.create([])
-                    text = j['Text']
-                    helper.writedcuser(j['Name'], j['UID'])
-                    if 'Nick' in j:
-                        displayname = f'{j["Nick"]}({j["Name"]})'
-                    else:
-                        displayname = j["Name"]
-                    text = f'{displayname}:\n{text}'
-                    text = re.sub('\[<.*:.*>]', '', text)
-                    text = re.sub(r'\r$|\n$', '', text)
-                    text = re.split(r'(@\[QQ: .*?].*#0000|@\[QQ: .*?])', text)
-                    for ele in text:
-                        matat = re.match(r'@\[QQ: (.*?)]', ele)
-                        if matat:
-                            msgchain = msgchain.plusWith(MessageChain.create([At(int(matat.group(1)))]))
-                        else:
-                            msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
+                with eventlet.Timeout(30):
                     try:
-                        def timeout_handler(signum, frame):
-                            raise TimeoutError
-                        async def sendmsg(j, msgchain):
-                            textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
-                            for elements in textre:
-                                a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
-                                if a:
-                                    msgchain = msgchain.plusWith(msgchain.create(
-                                        [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)]))
-                            sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
-                                                                 quote=j['Quote'] if 'Quote' in j else None)
-                            msgid = str(sendmsg.messageId)
-                            return msgid
-                        eventlet.monkey_patch()
-                        try:
-                            with eventlet.Timeout(15):
-                                msgid = await sendmsg(j, msgchain)
-                        except eventlet.timeout.Timeout:
-                            raise TimeoutError
-                    except (TimeoutError, Exception):
-                        traceback.print_exc()
-                        sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
-                        quote=j['Quote'] if 'Quote' in j else None)
-                        msgid = str(sendmsg.messageId)
-                        textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
-                        try:
-                            for elements in textre:
-                                a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
-                                if a:
-                                    msgchain2 = msgchain.create(
-                                        [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
-                                    sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2,
-                                    quote=j['Quote'] if 'Quote' in j else None)
-                                    msgid += f'|{sendimg.messageId}'
+                        recv_text = await websocket.recv()
+                        j = json.loads(recv_text)
+                        print(j)
+                        if j['Type'] == 'QQ':
+                            msgchain = MessageChain.create([])
+                            text = j['Text']
+                            helper.writedcuser(j['Name'], j['UID'])
+                            if 'Nick' in j:
+                                displayname = f'{j["Nick"]}({j["Name"]})'
+                            else:
+                                displayname = j["Name"]
+                            text = f'{displayname}:\n{text}'
+                            text = re.sub('\[<.*:.*>]', '', text)
+                            text = re.sub(r'\r$|\n$', '', text)
+                            text = re.split(r'(@\[QQ: .*?].*#0000|@\[QQ: .*?])', text)
+                            for ele in text:
+                                matat = re.match(r'@\[QQ: (.*?)]', ele)
+                                if matat:
+                                    msgchain = msgchain.plusWith(MessageChain.create([At(int(matat.group(1)))]))
+                                else:
+                                    msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
+                            try:
+                                async def sendmsg(j, msgchain):
+                                    textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
+                                    for elements in textre:
+                                        a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
+                                        if a:
+                                            msgchain = msgchain.plusWith(msgchain.create(
+                                                [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)]))
+                                    sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
+                                                                         quote=j['Quote'] if 'Quote' in j else None)
+                                    msgid = str(sendmsg.messageId)
                                     if debug == True:
-                                        helper.writeqqmsg(msgid, a.group(1))
-                        except Exception:
-                            traceback.print_exc()
-                    helper.writeid(j['MID'], msgid)
-                if j['Type'] == 'Discord':
-                    async with aiohttp.ClientSession() as session:
-                        webhook = Webhook.from_url(webhook_link
-                                                   ,
-                                                   adapter=AsyncWebhookAdapter(session))
-                        qqavatarbase = 'https://ptlogin2.qq.com/getface?appid=1006102&imgtype=3&uin=' + j['UID']
-                        async with session.get(qqavatarbase) as qlink:
-                            try:
-                                qqavatarlink = re.match(r'pt.setHeader\({".*?":"(https://thirdqq.qlogo.cn/.*)"}\)',
-                                                        await qlink.text())
-                                qqavatarlink = qqavatarlink.group(1)
-                            except Exception:
-                                qqavatarlink = None
-                        if 'Quote' in j:
+                                        helper.writeqqmsg(msgid, j['Text'])
+                                    return msgid
+                                eventlet.monkey_patch()
+                                try:
+                                    with eventlet.Timeout(15):
+                                        msgid = await sendmsg(j, msgchain)
+                                except eventlet.timeout.Timeout:
+                                    raise TimeoutError
+                            except (TimeoutError, Exception):
+                                traceback.print_exc()
+                                sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
+                                quote=j['Quote'] if 'Quote' in j else None)
+                                msgid = str(sendmsg.messageId)
+                                textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
+                                try:
+                                    for elements in textre:
+                                        a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
+                                        if a:
+                                            msgchain2 = msgchain.create(
+                                                [Image.fromNetworkAddress(url=a.group(1), method=UploadMethods.Group)])
+                                            sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2,
+                                            quote=j['Quote'] if 'Quote' in j else None)
+                                            msgid += f'|{sendimg.messageId}'
+                                            if debug == True:
+                                                helper.writeqqmsg(msgid, a.group(1))
+                                except Exception:
+                                    traceback.print_exc()
+                            helper.writeid(j['MID'], msgid)
+                        if j['Type'] == 'Discord':
+                            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(20)) as session:
+                                webhook = Webhook.from_url(webhook_link
+                                                           ,
+                                                           adapter=AsyncWebhookAdapter(session))
+                                qqavatarbase = 'https://ptlogin2.qq.com/getface?appid=1006102&imgtype=3&uin=' + j['UID']
+                                async with session.get(qqavatarbase) as qlink:
+                                    try:
+                                        qqavatarlink = re.match(r'pt.setHeader\({".*?":"(https://thirdqq.qlogo.cn/.*)"}\)',
+                                                                await qlink.text())
+                                        qqavatarlink = qqavatarlink.group(1)
+                                    except Exception:
+                                        qqavatarlink = None
+                                if 'Quote' in j:
+                                    c = helper.connect_db('./msgid.db')
+                                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['Quote']['MID']}%'")
+                                    for x in cc:
+                                        print(x)
+                                        msgids = x[0]
+                                        msgids = msgids.split('|')
+                                        msgid = msgids[0]
+                                    embed = discord.Embed.from_dict({
+                                        "description": f"{j['Quote']['Name']} | {j['Quote']['Time']}  [[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})",
+                                        "footer": {"text": f"{j['Quote']['Text']}"},
+                                    })
+                                    embed.color = 0x4F545C
+                                    await webhook.send(username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                                       avatar_url=qqavatarlink,
+                                                       allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
+                                                       embed=embed
+                                                       )
+                                send = await webhook.send(j["Text"], username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                                          avatar_url=qqavatarlink,
+                                                          allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
+                                                          wait=True)
+                                helper.writeid(send.id, j["MID"])
+                        if j['Type'] == 'DCdelete':
                             c = helper.connect_db('./msgid.db')
-                            cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['Quote']['MID']}%'")
+                            cc = c.execute("SELECT * FROM ID WHERE DCID=?", (j['MID'],))
                             for x in cc:
-                                print(x)
-                                msgids = x[0]
+                                msgids = x[1]
                                 msgids = msgids.split('|')
-                                msgid = msgids[0]
-                            embed = discord.Embed.from_dict({
-                                "description": f"{j['Quote']['Name']} | {j['Quote']['Time']}  [[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})",
-                                "footer": {"text": f"{j['Quote']['Text']}"},
-                            })
-                            embed.color = 0x4F545C
-                            await webhook.send(username=f'[QQ: {j["UID"]}] {j["Name"]}',
-                                               avatar_url=qqavatarlink,
-                                               allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
-                                               embed=embed
-                                               )
-                        send = await webhook.send(j["Text"], username=f'[QQ: {j["UID"]}] {j["Name"]}',
-                                                  avatar_url=qqavatarlink,
-                                                  allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
-                                                  wait=True)
-                        helper.writeid(send.id, j["MID"])
-                if j['Type'] == 'DCdelete':
-                    c = helper.connect_db('./msgid.db')
-                    cc = c.execute("SELECT * FROM ID WHERE DCID=?", (j['MID'],))
-                    for x in cc:
-                        msgids = x[1]
-                        msgids = msgids.split('|')
-                        for msgid in msgids:
-                            try:
-                                await app.revokeMessage(msgid)
-                            except Exception:
-                                continue
-                    c.close()
-                if j['Type'] == 'QQrecallI':
-                    c = helper.connect_db('./msgid.db')
-                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
-                    for x in cc:
-                        msgids = x[1]
-                        print(msgids)
-                        msgids = msgids.split('|')
-                        for y in msgids:
-                            if y != j['MID']:
-                                try:
-                                    await app.revokeMessage(y)
-                                except Exception:
-                                    traceback.print_exc()
-                    c.close()
-                if j['Type'] == 'QQrecallD':
-                    c = helper.connect_db('./msgid.db')
-                    cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{j['MID']}%'")
-                    for x in cc:
-                        msgids = x[1]
-                        print(msgids)
-                        msgids = msgids.split('|')
-                        for y in msgids:
-                            if y != j['MID']:
-                                try:
-                                    await app.revokeMessage(y)
-                                except Exception:
-                                    traceback.print_exc()
-                    c.close()
+                                for msgid in msgids:
+                                    try:
+                                        await app.revokeMessage(msgid)
+                                    except Exception:
+                                        continue
+                            c.close()
+                        if j['Type'] == 'QQrecallI':
+                            c = helper.connect_db('./msgid.db')
+                            cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
+                            for x in cc:
+                                msgids = x[1]
+                                print(msgids)
+                                msgids = msgids.split('|')
+                                for y in msgids:
+                                    if y != j['MID']:
+                                        try:
+                                            await app.revokeMessage(y)
+                                        except Exception:
+                                            traceback.print_exc()
+                            c.close()
+                        if j['Type'] == 'QQrecallD':
+                            c = helper.connect_db('./msgid.db')
+                            cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{j['MID']}%'")
+                            for x in cc:
+                                msgids = x[1]
+                                print(msgids)
+                                msgids = msgids.split('|')
+                                for y in msgids:
+                                    if y != j['MID']:
+                                        try:
+                                            await app.revokeMessage(y)
+                                        except Exception:
+                                            traceback.print_exc()
+                            c.close()
+                    except eventlet.TimeoutError:
+                        traceback.print_exc()
             except websockets.exceptions.ConnectionClosedOK:
                 pass
             except Exception:
@@ -387,7 +392,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
     if group.id == target_qqgroup:
         if message.asDisplay() == '$count':
             a = helper.connect_db('./msgid.db').execute('SELECT COUNT(*) as cnt FROM ID').fetchone()
-            a1 = round(os.path.getsize('./msgid.db')/float(1024*1024), 2)
+            a1 = round(os.path.getsize('./msgid.db')/ float(1024*1024), 2)
             b = helper.connect_db('./qqmsg.db').execute('SELECT COUNT(*) as cnt FROM MSG').fetchone()
             b1 = round(os.path.getsize('./qqmsg.db') / float(1024 * 1024), 2)
             c = helper.connect_db('./dcname.db').execute('SELECT COUNT(*) as cnt FROM DCNAME').fetchone()
@@ -399,6 +404,12 @@ qqmsg.db({b1}MB):
 dcname.db({c1}MB):
 - DCNAME: {c[0]}'''
             await app.sendGroupMessage(group, MessageChain.create([Plain(d)]))
+        if message.asDisplay() == '谁At我':
+            if debug == True:
+                a = helper.connect_db('./qqmsg.db').execute(f"SELECT ID, MSG FROM MSG WHERE MSG LIKE '%{'@[QQ: ' + str(member.id) + ']'}%'").fetchall()[-1]
+                print(a[0])
+                await app.sendGroupMessage(group, MessageChain.create([Plain('This.')]), quote=int(a[0]))
+
 
 
 app.launch_blocking()
