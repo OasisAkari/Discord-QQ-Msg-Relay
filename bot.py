@@ -163,6 +163,8 @@ async def revokeevent(event: GroupRecallEvent):
                             except Exception:
                                 traceback.print_exc()
                 c.close()
+    except Exception:
+        traceback.print_exc()
 
 
 async def login_dcbot():
