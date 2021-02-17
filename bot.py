@@ -304,13 +304,14 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                 if 'Quote' in j:
                     c = helper.connect_db('./msgid.db')
                     cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['Quote']['MID']}%'")
+                    msgid = False
                     for x in cc:
                         print(x)
                         msgids = x[0]
                         msgids = msgids.split('|')
                         msgid = msgids[0]
                     embed = discord.Embed.from_dict({
-                        "description": f"{j['Quote']['Name']} | {j['Quote']['Time']}  [[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})",
+                        "description": f"{j['Quote']['Name']} | {j['Quote']['Time']}" + (f"[[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})" if msgid else '[ ? ]'),
                         "footer": {"text": f"{j['Quote']['Text']}"},
                     })
                     embed.color = 0x4F545C
