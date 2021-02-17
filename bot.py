@@ -44,133 +44,136 @@ else:
 client = discord.Client()
 
 
-@bcc.receiver("ApplicationLaunched", priority=1)
-async def dcbot():
+@client.event
+async def on_ready():
+    print('We have logged in as {0.user}'.format(client))
+    if debug == True:
+        await helper.dc_debug_webhook(debug_webhook_link, f'互联机器人已启动。', f'[INFO]')
 
-    @client.event
-    async def on_ready():
-        print('We have logged in as {0.user}'.format(client))
-        if debug == True:
-            await helper.dc_debug_webhook(debug_webhook_link, f'互联机器人已启动。', f'[INFO]')
+@client.event
+async def on_message(message):
+    botfliter = re.match(r'^\[QQ: (.*?)\].*?#0000$', str(message.author))
+    if not botfliter:
+        print(message)
+        if message.channel.id == channelid:
+            messages = message.content
+            if messages[0:2] != '//':
+                await DCsendtoQQ(message, messages)
 
-    @client.event
-    async def on_message(message):
-        botfliter = re.match(r'^\[QQ: (.*?)\].*?#0000$', str(message.author))
-        if not botfliter:
-            print(message)
-            if message.channel.id == channelid:
-                messages = message.content
-                if messages[0:2] != '//':
-                    await DCsendtoQQ(message, messages)
+@client.event
+async def on_message_edit(before, after):
+    if before.channel.id == channelid:
+        if before.id != -1:
+            print(before)
+            print(after)
+            if before.content != after.content:
+                messages = after.content
+                emojis = re.findall(r'<:.*?:.*?>', messages)
+                for emoji in emojis:
+                    a = re.match(r'\<:.*?:(.*?)\>', emoji)
+                    if a:
+                        b = 'https://cdn.discordapp.com/emojis/' + a.group(1)
+                        messages = re.sub(emoji, f'[<ImageURL:{b}>]', messages)
+                findstrike = re.findall(r'~~.*?~~', messages, re.S)
+                for strike in findstrike:
+                    matchstrike = re.match(r'~~(.*)~~', strike, re.S).group(1)
+                    q = ['']
+                    for x in matchstrike:
+                        q.append(x)
+                    q.append('')
+                    strikemsg = '̶'.join(q)
+                    messages = re.sub(strike, strikemsg, messages)
+                c = helper.connect_db('./msgid.db')
+                cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{str(before.id)}%'")
+                for x in cc:
+                    msgids = x[1]
+                    print(msgids)
+                    msgids = msgids.split('|')
+                    for y in msgids:
+                        if y != str(before.id):
+                            try:
+                                await app.revokeMessage(y)
+                            except Exception:
+                                traceback.print_exc()
+                c.close()
+                await DCsendtoQQ(after, messages, edited=True)
 
-    @client.event
-    async def on_message_edit(before, after):
-        if before.channel.id == channelid:
-            if before.id != -1:
-                print(before)
-                print(after)
-                if before.content != after.content:
-                    messages = after.content
-                    emojis = re.findall(r'<:.*?:.*?>', messages)
-                    for emoji in emojis:
-                        a = re.match(r'\<:.*?:(.*?)\>', emoji)
-                        if a:
-                            b = 'https://cdn.discordapp.com/emojis/' + a.group(1)
-                            messages = re.sub(emoji, f'[<ImageURL:{b}>]', messages)
-                    findstrike = re.findall(r'~~.*?~~', messages, re.S)
-                    for strike in findstrike:
-                        matchstrike = re.match(r'~~(.*)~~', strike, re.S).group(1)
-                        q = ['']
-                        for x in matchstrike:
-                            q.append(x)
-                        q.append('')
-                        strikemsg = '̶'.join(q)
-                        messages = re.sub(strike, strikemsg, messages)
+@client.event
+async def on_message_delete(message):
+    if message.id != -1:
+        c = helper.connect_db('./msgid.db')
+        cc = c.execute("SELECT * FROM ID WHERE DCID=?", (message.id,))
+        for x in cc:
+            msgids = x[1]
+            msgids = msgids.split('|')
+            for msgid in msgids:
+                try:
+                    await app.revokeMessage(msgid)
+                except Exception:
+                    continue
+        c.close()
+
+@bcc.receiver("GroupRecallEvent")
+async def revokeevent(event: GroupRecallEvent):
+    print(event)
+    eventlet.monkey_patch()
+    with eventlet.Timeout(15):
+        try:
+            if event.group.id == target_qqgroup:
+                dst = {}
+                if event.authorId != qq:
+                    dst['Type'] = 'QQrecall'
+                else:
+                    dst['Type'] = 'QQrecallI'
+                dst['MID'] = event.messageId
+                dst['UID'] = event.authorId
+                j = dst
+                if debug:
+                    print(event.authorId)
+                    try:
+                        c = helper.connect_db('./qqmsg.db')
+                        cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
+                        for x in cc:
+                            msg = x[1]
+                        msg = re.sub('@', '\@', msg)
+                        await helper.dc_debug_webhook(debug_webhook_link, f'{event.authorId} 撤回了一条消息： {msg}',
+                                                      '[QQ]')
+                    except Exception:
+                        traceback.print_exc()
+                if j['Type'] == 'QQrecall':
+                    channel = client.get_channel(channelid)
                     c = helper.connect_db('./msgid.db')
-                    cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{str(before.id)}%'")
+                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
+                    for x in cc:
+                        msgid = x[0]
+                    try:
+                        aa = await channel.fetch_message(msgid)
+                        await aa.delete()
+                    except:
+                        traceback.print_exc()
+                if j['Type'] == 'QQrecallI':
+                    c = helper.connect_db('./msgid.db')
+                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
                     for x in cc:
                         msgids = x[1]
                         print(msgids)
                         msgids = msgids.split('|')
                         for y in msgids:
-                            if y != str(before.id):
+                            if y != j['MID']:
                                 try:
                                     await app.revokeMessage(y)
                                 except Exception:
                                     traceback.print_exc()
                     c.close()
-                    await DCsendtoQQ(after, messages, edited=True)
+        except eventlet.TimeoutError:
+            traceback.print_exc()
 
-    @client.event
-    async def on_message_delete(message):
-        if message.id != -1:
-            c = helper.connect_db('./msgid.db')
-            cc = c.execute("SELECT * FROM ID WHERE DCID=?", (message.id,))
-            for x in cc:
-                msgids = x[1]
-                msgids = msgids.split('|')
-                for msgid in msgids:
-                    try:
-                        await app.revokeMessage(msgid)
-                    except Exception:
-                        continue
-            c.close()
 
-    @bcc.receiver("GroupRecallEvent")
-    async def revokeevent(event: GroupRecallEvent):
-        print(event)
-        eventlet.monkey_patch()
-        with eventlet.Timeout(15):
-            try:
-                if event.group.id == target_qqgroup:
-                    dst = {}
-                    if event.authorId != qq:
-                        dst['Type'] = 'QQrecall'
-                    else:
-                        dst['Type'] = 'QQrecallI'
-                    dst['MID'] = event.messageId
-                    dst['UID'] = event.authorId
-                    j = dst
-                    if debug:
-                        print(event.authorId)
-                        try:
-                            c = helper.connect_db('./qqmsg.db')
-                            cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
-                            for x in cc:
-                                msg = x[1]
-                            msg = re.sub('@', '\@', msg)
-                            await helper.dc_debug_webhook(debug_webhook_link, f'{event.authorId} 撤回了一条消息： {msg}',
-                                                          '[QQ]')
-                        except Exception:
-                            traceback.print_exc()
-                    if j['Type'] == 'QQrecall':
-                        channel = client.get_channel(channelid)
-                        c = helper.connect_db('./msgid.db')
-                        cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
-                        for x in cc:
-                            msgid = x[0]
-                        try:
-                            aa = await channel.fetch_message(msgid)
-                            await aa.delete()
-                        except:
-                            traceback.print_exc()
-                    if j['Type'] == 'QQrecallI':
-                        c = helper.connect_db('./msgid.db')
-                        cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
-                        for x in cc:
-                            msgids = x[1]
-                            print(msgids)
-                            msgids = msgids.split('|')
-                            for y in msgids:
-                                if y != j['MID']:
-                                    try:
-                                        await app.revokeMessage(y)
-                                    except Exception:
-                                        traceback.print_exc()
-                        c.close()
-            except eventlet.TimeoutError:
-                traceback.print_exc()
-    await client.start(bottoken)
+async def login_dcbot():
+    await client.login(bottoken)
+    await client.connect(reconnect=True)
+
+bcc.loop.create_task(login_dcbot())
 
 
 @bcc.receiver("GroupMessage")
@@ -319,7 +322,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                                           allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
                                           wait=True)
                 helper.writeid(send.id, j["MID"])
-                await session.close()
+            await session.close()
 
 
 async def DCsendtoQQ(message, messages, edited=False):
