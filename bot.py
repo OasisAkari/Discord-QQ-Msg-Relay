@@ -116,62 +116,62 @@ async def on_message_delete(message):
 @bcc.receiver("GroupRecallEvent")
 async def revokeevent(event: GroupRecallEvent):
     print(event)
-    eventlet.monkey_patch()
-    with eventlet.Timeout(15):
-        try:
-            if event.group.id == target_qqgroup:
-                dst = {}
-                if event.authorId != qq:
-                    dst['Type'] = 'QQrecall'
-                else:
-                    dst['Type'] = 'QQrecallI'
-                dst['MID'] = event.messageId
-                dst['UID'] = event.authorId
-                j = dst
-                if debug:
-                    print(event.authorId)
-                    try:
-                        c = helper.connect_db('./qqmsg.db')
-                        cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
-                        for x in cc:
-                            msg = x[1]
-                        msg = re.sub('@', '\@', msg)
-                        await helper.dc_debug_webhook(debug_webhook_link, f'{event.authorId} 撤回了一条消息： {msg}',
-                                                      '[QQ]')
-                    except Exception:
-                        traceback.print_exc()
-                if j['Type'] == 'QQrecall':
-                    channel = client.get_channel(channelid)
-                    c = helper.connect_db('./msgid.db')
-                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
+    try:
+        if event.group.id == target_qqgroup:
+            dst = {}
+            if event.authorId != qq:
+                dst['Type'] = 'QQrecall'
+            else:
+                dst['Type'] = 'QQrecallI'
+            dst['MID'] = event.messageId
+            dst['UID'] = event.authorId
+            j = dst
+            if debug:
+                print(event.authorId)
+                try:
+                    c = helper.connect_db('./qqmsg.db')
+                    cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
                     for x in cc:
-                        msgid = x[0]
-                    try:
-                        aa = await channel.fetch_message(msgid)
-                        await aa.delete()
-                    except:
-                        traceback.print_exc()
-                if j['Type'] == 'QQrecallI':
-                    c = helper.connect_db('./msgid.db')
-                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
-                    for x in cc:
-                        msgids = x[1]
-                        print(msgids)
-                        msgids = msgids.split('|')
-                        for y in msgids:
-                            if y != j['MID']:
-                                try:
-                                    await app.revokeMessage(y)
-                                except Exception:
-                                    traceback.print_exc()
-                    c.close()
-        except eventlet.TimeoutError:
-            traceback.print_exc()
+                        msg = x[1]
+                    msg = re.sub('@', '\@', msg)
+                    await helper.dc_debug_webhook(debug_webhook_link, f'{event.authorId} 撤回了一条消息： {msg}',
+                                                  '[QQ]')
+                except Exception:
+                    traceback.print_exc()
+            if j['Type'] == 'QQrecall':
+                channel = client.get_channel(channelid)
+                c = helper.connect_db('./msgid.db')
+                cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
+                for x in cc:
+                    msgid = x[0]
+                try:
+                    aa = await channel.fetch_message(msgid)
+                    await aa.delete()
+                except:
+                    traceback.print_exc()
+            if j['Type'] == 'QQrecallI':
+                c = helper.connect_db('./msgid.db')
+                cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
+                for x in cc:
+                    msgids = x[1]
+                    print(msgids)
+                    msgids = msgids.split('|')
+                    for y in msgids:
+                        if y != j['MID']:
+                            try:
+                                await app.revokeMessage(y)
+                            except Exception:
+                                traceback.print_exc()
+                c.close()
 
 
 async def login_dcbot():
-    await client.login(bottoken)
-    await client.connect(reconnect=True)
+    try:
+        await client.login(bottoken)
+        await client.connect(reconnect=True)
+    finally:
+        if not client.is_closed():
+            await client.close()
 
 bcc.loop.create_task(login_dcbot())
 
@@ -460,34 +460,29 @@ async def DCsendtoQQ(message, messages, edited=False):
 
 @bcc.receiver("GroupMessage")
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
-    try:
-        eventlet.monkey_patch()
-        with eventlet.Timeout(15):
-            if group.id == target_qqgroup:
-                if message.asDisplay() == '$count':
-                    a = helper.connect_db('../msgid.db').execute('SELECT COUNT(*) as cnt FROM ID').fetchone()
-                    a1 = round(os.path.getsize('../msgid.db') / float(1024 * 1024), 2)
-                    b = helper.connect_db('../qqmsg.db').execute('SELECT COUNT(*) as cnt FROM MSG').fetchone()
-                    b1 = round(os.path.getsize('../qqmsg.db') / float(1024 * 1024), 2)
-                    c = helper.connect_db('../dcname.db').execute('SELECT COUNT(*) as cnt FROM DCNAME').fetchone()
-                    c1 = round(os.path.getsize('../dcname.db') / float(1024 * 1024), 2)
-                    d = f'''msgid.db({a1}MB):
+    if group.id == target_qqgroup:
+        if message.asDisplay() == '$count':
+            a = helper.connect_db('../msgid.db').execute('SELECT COUNT(*) as cnt FROM ID').fetchone()
+            a1 = round(os.path.getsize('../msgid.db') / float(1024 * 1024), 2)
+            b = helper.connect_db('../qqmsg.db').execute('SELECT COUNT(*) as cnt FROM MSG').fetchone()
+            b1 = round(os.path.getsize('../qqmsg.db') / float(1024 * 1024), 2)
+            c = helper.connect_db('../dcname.db').execute('SELECT COUNT(*) as cnt FROM DCNAME').fetchone()
+            c1 = round(os.path.getsize('../dcname.db') / float(1024 * 1024), 2)
+            d = f'''msgid.db({a1}MB):
 - ID: {a[0]}
 qqmsg.db({b1}MB):
 - MSG: {b[0]}
 dcname.db({c1}MB):
 - DCNAME: {c[0]}'''
-                    await app.sendGroupMessage(group, MessageChain.create([Plain(d)]))
-                if message.asDisplay() == '谁At我':
-                    try:
-                        if debug == True:
-                            a = helper.connect_db('../qqmsg.db').execute(f"SELECT ID, MSG FROM MSG WHERE MSG LIKE '%{'@[QQ: ' + str(member.id) + ']'}%'").fetchall()[-1]
-                            print(a[0])
-                            await app.sendGroupMessage(group, MessageChain.create([Plain('This.')]), quote=int(a[0]))
-                    except Exception:
-                        await app.sendGroupMessage(group, MessageChain.create([Plain('无法定位。')]))
-    except eventlet.TimeoutError:
-        traceback.print_exc()
+            await app.sendGroupMessage(group, MessageChain.create([Plain(d)]))
+        if message.asDisplay() == '谁At我':
+            try:
+                if debug == True:
+                    a = helper.connect_db('../qqmsg.db').execute(f"SELECT ID, MSG FROM MSG WHERE MSG LIKE '%{'@[QQ: ' + str(member.id) + ']'}%'").fetchall()[-1]
+                    print(a[0])
+                    await app.sendGroupMessage(group, MessageChain.create([Plain('This.')]), quote=int(a[0]))
+            except Exception:
+                await app.sendGroupMessage(group, MessageChain.create([Plain('无法定位。')]))
 
 
 app.launch_blocking()
