@@ -87,7 +87,7 @@ async def dc_debug_webhook(debug_webhook_link, message, username, avatar_url=Non
                                        adapter=AsyncWebhookAdapter(session))
             await webhook.send(message, username=username,
                                avatar_url=avatar_url)
-            await session.close()
+        await session.close()
     except eventlet.TimeoutError:
         traceback.print_exc()
 

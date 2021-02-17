@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import re
 import traceback
 from datetime import timezone, timedelta
@@ -43,13 +44,13 @@ else:
 client = discord.Client()
 
 
-@bcc.receiver("ApplicationLaunched")
+@bcc.receiver("ApplicationLaunched", priority=16)
 async def ready():
     if debug:
         await helper.dc_debug_webhook(debug_webhook_link, f'互联QQ侧机器人已启动。', f'[INFO] QQBOT',
                                       'https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
 
-@bcc.receiver("ApplicationLaunched")
+@bcc.receiver("ApplicationLaunched", priority=1)
 async def dcbot():
 
     @client.event
@@ -458,6 +459,38 @@ async def DCsendtoQQ(message, messages, edited=False):
         except Exception:
             traceback.print_exc()
     helper.writeid(j['MID'], msgid)
+
+
+@bcc.receiver("GroupMessage")
+async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
+    try:
+        eventlet.monkey_patch()
+        with eventlet.Timeout(15):
+            if group.id == target_qqgroup:
+                if message.asDisplay() == '$count':
+                    a = helper.connect_db('../msgid.db').execute('SELECT COUNT(*) as cnt FROM ID').fetchone()
+                    a1 = round(os.path.getsize('../msgid.db') / float(1024 * 1024), 2)
+                    b = helper.connect_db('../qqmsg.db').execute('SELECT COUNT(*) as cnt FROM MSG').fetchone()
+                    b1 = round(os.path.getsize('../qqmsg.db') / float(1024 * 1024), 2)
+                    c = helper.connect_db('../dcname.db').execute('SELECT COUNT(*) as cnt FROM DCNAME').fetchone()
+                    c1 = round(os.path.getsize('../dcname.db') / float(1024 * 1024), 2)
+                    d = f'''msgid.db({a1}MB):
+- ID: {a[0]}
+qqmsg.db({b1}MB):
+- MSG: {b[0]}
+dcname.db({c1}MB):
+- DCNAME: {c[0]}'''
+                    await app.sendGroupMessage(group, MessageChain.create([Plain(d)]))
+                if message.asDisplay() == '谁At我':
+                    try:
+                        if debug == True:
+                            a = helper.connect_db('../qqmsg.db').execute(f"SELECT ID, MSG FROM MSG WHERE MSG LIKE '%{'@[QQ: ' + str(member.id) + ']'}%'").fetchall()[-1]
+                            print(a[0])
+                            await app.sendGroupMessage(group, MessageChain.create([Plain('This.')]), quote=int(a[0]))
+                    except Exception:
+                        await app.sendGroupMessage(group, MessageChain.create([Plain('无法定位。')]))
+    except eventlet.TimeoutError:
+        traceback.print_exc()
 
 
 app.launch_blocking()
