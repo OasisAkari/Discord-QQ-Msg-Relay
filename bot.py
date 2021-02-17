@@ -20,7 +20,7 @@ import discord
 
 config_path = abspath("config/config.cfg")
 
-qq = c('qq')
+qq = int(c('qq'))
 target_qqgroup = int(c('qqgroup'))
 channelid = int(c('dc_channel'))
 bottoken = c('dc_bottoken')
