@@ -79,18 +79,13 @@ def connect_db(path):
 
 
 async def dc_debug_webhook(debug_webhook_link, message, username, avatar_url=None):
-    eventlet.monkey_patch()
-    try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(15)) as session:
-            webhook = Webhook.from_url(debug_webhook_link
-                                       ,
-                                       adapter=AsyncWebhookAdapter(session))
-            await webhook.send(message, username=username,
-                               avatar_url=avatar_url)
-        await session.close()
-    except eventlet.TimeoutError:
-        traceback.print_exc()
-
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(15)) as session:
+        webhook = Webhook.from_url(debug_webhook_link
+                                   ,
+                                   adapter=AsyncWebhookAdapter(session))
+        await webhook.send(message, username=username,
+                           avatar_url=avatar_url)
+    await session.close()
 
 async def sendtoWebsocket(websocket_port, text):
     async with websockets.connect('ws://127.0.0.1:' + websocket_port, timeout=10) as websocket:
