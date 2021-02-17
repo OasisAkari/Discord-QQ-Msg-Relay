@@ -1,5 +1,7 @@
 # Discord-QQ-Msg-Relay
 将Discord和QQ的消息相互转发
+# 注意
+本机器人架构由于近日的迷之运行不稳定原因，已弃用Websocket作为消息交换的桥梁，暂时改用内部的强耦合连接来保证消息传输，有少量先前版本使用的传输方式的痕迹存在于代码，阅读代码可能会导致一定程度的困惑，为此我感到抱歉~~下次还敢~~，~~在遥远的~~以后将会进行更深一步的重构。
 # 效果
 ![Img](https://github.com/Teahouse-Studios/Discord-QQ-Msg-Relay/blob/main/20201117144204.png?raw=true)
 # 配置
@@ -10,6 +12,7 @@ Discord侧以[Discord.py](https://github.com/Rapptz/discord.py)与Discord进行�
 ~~以 `Websockets` 库进行信息交换。~~由于不稳定性，已暂时废除此方法。改用强耦合方式进行信息交换。
 
 你需要先配置好以上环境、获取到Discord的Bot token后继续。
+
 
 `config.cfg`的内容注解：
 ```
@@ -28,7 +31,7 @@ debug_webhook_link=None Discord Debug 频道链接。（debug不设置为True时
 face_link=None 表情资源链接，要求表情为s<表情ID>.gif的格式，需要对部分原资源进行转gif处理。~~懒得搞png和gif同时支持了，有点复杂~~留None时表情只会显示ID
 font_effect=True 开启文字特效（如删除线文字）
 ```
-配置完后，分别启动bot.py和discordbot.py即可
+配置完后，启动bot.py即可
 # TODO
 - [x] 文字、图片的转发
 - [x] 转发内容引用提示
@@ -37,7 +40,6 @@ font_effect=True 开启文字特效（如删除线文字）
 - [x] Embed 消息转发
 - [x] 消息撤回
 - [x] 消息编辑
-- [ ] 同时启动两个脚本
 
 # 暂无计划支持的
 - [ ] 多群同时互联
