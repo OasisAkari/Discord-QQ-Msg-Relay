@@ -44,12 +44,6 @@ else:
 client = discord.Client()
 
 
-@bcc.receiver("ApplicationLaunched", priority=16)
-async def ready():
-    if debug:
-        await helper.dc_debug_webhook(debug_webhook_link, f'互联QQ侧机器人已启动。', f'[INFO] QQBOT',
-                                      'https://cdn.discordapp.com/avatars/700205918918541333/c039f234d1796106fb989bcb0e3fe735.png')
-
 @bcc.receiver("ApplicationLaunched", priority=1)
 async def dcbot():
 
@@ -57,7 +51,7 @@ async def dcbot():
     async def on_ready():
         print('We have logged in as {0.user}'.format(client))
         if debug == True:
-            await helper.dc_debug_webhook(debug_webhook_link, f'互联DC侧机器人已启动。', f'[INFO] DCBOT')
+            await helper.dc_debug_webhook(debug_webhook_link, f'互联机器人已启动。', f'[INFO]')
 
     @client.event
     async def on_message(message):

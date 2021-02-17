@@ -93,11 +93,6 @@ async def dc_debug_webhook(debug_webhook_link, message, username, avatar_url=Non
 
 
 async def sendtoWebsocket(websocket_port, text):
-    eventlet.monkey_patch()
-    try:
-        with eventlet.Timeout(15):
-            async with websockets.connect('ws://127.0.0.1:' + websocket_port) as websocket:
-                await websocket.send(text)
-                await websocket.close()
-    except eventlet.TimeoutError:
-        traceback.print_exc()
+    async with websockets.connect('ws://127.0.0.1:' + websocket_port, timeout=10) as websocket:
+        await websocket.send(text)
+    await websocket.close()
