@@ -7,16 +7,17 @@
 
 Discord侧以[Discord.py](https://github.com/Rapptz/discord.py)与Discord进行获取信息，以Discord WebHook特性进行发送消息。
 
-以 `Websockets` 库进行信息交换。
+~~以 `Websockets` 库进行信息交换。~~由于不稳定性，已暂时废除此方法。改用强耦合方式进行信息交换。
 
 你需要先配置好以上环境、获取到Discord的Bot token后继续。
 
 `config.cfg`的内容注解：
 ```
+enable_chat_log=True 打开graia的聊天log
 mah_link= mirai-api-http的链接
 qq= 用于充当QQ侧机器人的QQ号。
 mah_auth= mirai-api-http的auth token
-websocket_port= websocket的端口（自行任意指定一个可用的）
+websocket=True 是否使用websocket连接mirai-api-http（默认开启即可，与上文划删除线的无关）
 qqgroup= 目标QQ群
 webhook_link= Discord目标频道的Webhook链接
 dc_server= Discord目标服务器ID
