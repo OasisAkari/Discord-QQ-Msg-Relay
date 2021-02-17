@@ -9,7 +9,7 @@
 
 Discord侧以[Discord.py](https://github.com/Rapptz/discord.py)与Discord进行获取信息，以Discord WebHook特性进行发送消息。
 
-~~以 `Websockets` 库进行信息交换。~~由于不稳定性，已暂时废除此方法。改用强耦合方式进行信息交换。
+~~以 `Websockets` 库进行信息交换。~~ 由于不稳定性，已暂时废除此方法。改用强耦合方式进行信息交换。
 
 你需要先配置好以上环境、获取到Discord的Bot token后继续。
 
