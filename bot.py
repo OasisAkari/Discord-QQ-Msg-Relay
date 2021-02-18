@@ -340,18 +340,19 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                         async with aiohttp.ClientSession() as session2:
                             async with session2.get(img) as resp:
                                 if resp.status != 200:
-                                    await webhook.send('错误：无法发送图片', username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                    imgsend = await webhook.send('错误：无法发送图片', username=f'[QQ: {j["UID"]}] {j["Name"]}',
                                           avatar_url=qqavatarlink,
                                           allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
                                           wait=True)
-                                imgbytes = await resp.read()
-                                ftt = ft.match(imgbytes).extension
-                                data = io.BytesIO(imgbytes)
-                                imgsend = await webhook.send('', username=f'[QQ: {j["UID"]}] {j["Name"]}',
-                                                  avatar_url=qqavatarlink,
-                                                  file=discord.File(data, 'image.' + ftt),
-                                                  allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
-                                                  wait=True)
+                                else:
+                                    imgbytes = await resp.read()
+                                    ftt = ft.match(imgbytes).extension
+                                    data = io.BytesIO(imgbytes)
+                                    imgsend = await webhook.send('', username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                                      avatar_url=qqavatarlink,
+                                                      file=discord.File(data, 'image.' + ftt),
+                                                      allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
+                                                      wait=True)
                                 sendid.append(str(imgsend.id))
 
                 helper.writeid('|'.join(sendid), j["MID"])
