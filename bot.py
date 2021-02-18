@@ -1,4 +1,5 @@
 import asyncio
+import io
 import json
 import os
 import re
@@ -6,6 +7,7 @@ import traceback
 from datetime import timezone, timedelta
 from os.path import abspath
 
+import filetype as ft
 import aiohttp
 import eventlet
 from discord import AsyncWebhookAdapter
@@ -145,8 +147,10 @@ async def revokeevent(event: GroupRecallEvent):
                 for x in cc:
                     msgid = x[0]
                 try:
-                    aa = await channel.fetch_message(msgid)
-                    await aa.delete()
+                    msgid = msgid.split("|")
+                    for x in msgid:
+                        aa = await channel.fetch_message(x)
+                        await aa.delete()
                 except:
                     traceback.print_exc()
             if j['Type'] == 'QQrecallI':
@@ -185,6 +189,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             dst = {}
             print(message)
             msglist = []
+            imglist = []
             newquotetarget = None
             quotes = message.get(Quote)
             for quote in quotes:
@@ -254,13 +259,13 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                     msglist.append(msg.text)
             imgs = message.get(Image)
             for img in imgs:
-                msglist.append(img.url)
+                imglist.append(img.url)
             faces = message.get(Face)
             for face in faces:
                 if face_link != 'None':
-                    msglist.append(f'{face_link}s{face.faceId}.gif')
+                    imglist.append(f'{face_link}s{face.faceId}.gif')
                 else:
-                    msglist.append(f'[表情{face.faceId}]')
+                    imglist.append(f'[表情{face.faceId}]')
             xmls = message.get(Xml)
             for xml in xmls:
                 msglist.append(f'[Xml消息]\n```\n{xml}\n```')
@@ -289,7 +294,8 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             dst['MID'] = str(message[Source][0].id)
             dst['Text'] = allmsg
             j = dst
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(20)) as session:
+            sendid = []
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(60)) as session:
                 webhook = discord.Webhook.from_url(webhook_link
                                                    ,
                                                    adapter=AsyncWebhookAdapter(session))
@@ -315,16 +321,40 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                         "footer": {"text": f"{j['Quote']['Text']}"},
                     })
                     embed.color = 0x4F545C
-                    await webhook.send(username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                    quotesend = await webhook.send(username=f'[QQ: {j["UID"]}] {j["Name"]}',
                                        avatar_url=qqavatarlink,
                                        allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
-                                       embed=embed
+                                       embed=embed, wait=True
                                        )
-                send = await webhook.send(j["Text"], username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                    sendid.append(str(quotesend.id))
+                try:
+                    send = await webhook.send(j["Text"], username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                              avatar_url=qqavatarlink,
+                                              allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
+                                              wait=True)
+                    sendid.append(str(send.id))
+                except Exception:
+                    traceback.print_exc()
+                if imglist:
+                    for img in imglist:
+                        async with aiohttp.ClientSession() as session2:
+                            async with session2.get(img) as resp:
+                                if resp.status != 200:
+                                    await webhook.send('错误：无法发送图片', username=f'[QQ: {j["UID"]}] {j["Name"]}',
                                           avatar_url=qqavatarlink,
                                           allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
                                           wait=True)
-                helper.writeid(send.id, j["MID"])
+                                imgbytes = await resp.read()
+                                ftt = ft.match(imgbytes).extension
+                                data = io.BytesIO(imgbytes)
+                                imgsend = await webhook.send('', username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                                  avatar_url=qqavatarlink,
+                                                  file=discord.File(data, 'image.' + ftt),
+                                                  allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
+                                                  wait=True)
+                                sendid.append(str(imgsend.id))
+
+                helper.writeid('|'.join(sendid), j["MID"])
             await session.close()
 
 
