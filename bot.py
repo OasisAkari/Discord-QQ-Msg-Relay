@@ -327,6 +327,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                                        embed=embed, wait=True
                                        )
                     sendid.append(str(quotesend.id))
+                txt = j['Text']
                 if str(member.permission) not in ['MemberPerm.Administrator',
                                                       'MemberPerm.Owner']:
                     txt = re.sub(r'@everyone|@here|<@&.*?>', '@someone', j['Text'])
