@@ -327,8 +327,9 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                                        embed=embed, wait=True
                                        )
                     sendid.append(str(quotesend.id))
+                txt = re.sub(r'@everyone|@here', '-', j['Text'])
                 try:
-                    send = await webhook.send(j["Text"], username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                    send = await webhook.send(txt, username=f'[QQ: {j["UID"]}] {j["Name"]}',
                                               avatar_url=qqavatarlink,
                                               allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
                                               wait=True)
