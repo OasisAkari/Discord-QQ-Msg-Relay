@@ -327,8 +327,9 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                                        embed=embed, wait=True
                                        )
                     sendid.append(str(quotesend.id))
-                txt = re.sub(r'@everyone|@here', '-', j['Text'])
-                txt = re.sub(r'<@&.*?>', '-', txt)
+                if str(Member.permission) not in ['MemberPerm.Administrator',
+                                                      'MemberPerm.Owner']:
+                    txt = re.sub(r'@everyone|@here|<@&.*?>', '@someone', j['Text'])
                 try:
                     send = await webhook.send(txt, username=f'[QQ: {j["UID"]}] {j["Name"]}',
                                               avatar_url=qqavatarlink,
