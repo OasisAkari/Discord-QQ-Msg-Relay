@@ -45,6 +45,8 @@ else:
 
 client = discord.Client()
 
+conn = helper.connect_db('./msgid.db')
+c = conn.cursor()
 
 @client.event
 async def on_ready():
@@ -66,9 +68,14 @@ async def on_message(message):
 async def on_message_edit(before, after):
     if before.channel.id == channelid:
         if before.id != -1:
-            print(before)
-            print(after)
-            if before.content != after.content:
+            print('Edit before:', before)
+            print('Edit after:', after)
+            try:
+                print('Edit embeds before: ', before.embeds[0].to_dict())
+                print('Edit embeds after: ', after.embeds[0].to_dict())
+            except:
+                pass
+            if before.content != after.content or before.embeds[0].to_dict() != after.embeds[0].to_dict():
                 messages = after.content
                 emojis = re.findall(r'<:.*?:.*?>', messages)
                 for emoji in emojis:
@@ -85,7 +92,24 @@ async def on_message_edit(before, after):
                     q.append('')
                     strikemsg = '̶'.join(q)
                     messages = re.sub(strike, strikemsg, messages)
-                c = helper.connect_db('./msgid.db')
+                emsglst = []
+                for embed in after.embeds:
+                    ele = embed.to_dict()
+                    print(ele)
+                    if 'title' in ele:
+                        emsglst.append(ele['title'])
+                    if 'url' in ele:
+                        emsglst.append(ele['url'])
+                    if 'fields' in ele:
+                        for field_value in ele['fields']:
+                            emsglst.append(field_value['name'] + ': ' + field_value['value'])
+                    if 'description' in ele:
+                        emsglst.append(ele['description'])
+                    if 'footer' in ele:
+                        emsglst.append(ele['footer']['text'])
+                    if 'image' in ele:
+                        emsglst.append(f'[<ImageURL:{ele["image"]["proxy_url"]}>]')
+                messages += '\n' + '\n'.join(emsglst)
                 cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{str(before.id)}%'")
                 for x in cc:
                     msgids = x[1]
@@ -97,13 +121,11 @@ async def on_message_edit(before, after):
                                 await app.revokeMessage(y)
                             except Exception:
                                 traceback.print_exc()
-                c.close()
                 await DCsendtoQQ(after, messages, edited=True)
 
 @client.event
 async def on_message_delete(message):
     if message.id != -1:
-        c = helper.connect_db('./msgid.db')
         cc = c.execute("SELECT * FROM ID WHERE DCID=?", (message.id,))
         for x in cc:
             msgids = x[1]
@@ -113,7 +135,7 @@ async def on_message_delete(message):
                     await app.revokeMessage(msgid)
                 except Exception:
                     continue
-        c.close()
+
 
 @bcc.receiver("GroupRecallEvent")
 async def revokeevent(event: GroupRecallEvent):
@@ -131,8 +153,9 @@ async def revokeevent(event: GroupRecallEvent):
             if debug:
                 print(event.authorId)
                 try:
-                    c = helper.connect_db('./qqmsg.db')
-                    cc = c.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
+                    d = helper.connect_db('./qqmsg.db')
+                    d = d.cursor()
+                    cc = d.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
                     for x in cc:
                         msg = x[1]
                     msg = re.sub('@', '\@', msg)
@@ -142,7 +165,6 @@ async def revokeevent(event: GroupRecallEvent):
                     traceback.print_exc()
             if j['Type'] == 'QQrecall':
                 channel = client.get_channel(channelid)
-                c = helper.connect_db('./msgid.db')
                 cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
                 for x in cc:
                     msgid = x[0]
@@ -154,7 +176,6 @@ async def revokeevent(event: GroupRecallEvent):
                 except:
                     traceback.print_exc()
             if j['Type'] == 'QQrecallI':
-                c = helper.connect_db('./msgid.db')
                 cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
                 for x in cc:
                     msgids = x[1]
@@ -166,7 +187,6 @@ async def revokeevent(event: GroupRecallEvent):
                                 await app.revokeMessage(y)
                             except Exception:
                                 traceback.print_exc()
-                c.close()
     except Exception:
         traceback.print_exc()
 
@@ -233,8 +253,9 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                         if mat:
                             newquotetarget = mat.group(1)
                         try:
-                            c = helper.connect_db('./dcname.db')
-                            cc = c.execute("SELECT * FROM DCNAME WHERE NAME=?", (newquotetarget,))
+                            d = helper.connect_db('./dcname.db')
+                            d = d.cursor()
+                            cc = d.execute("SELECT * FROM DCNAME WHERE NAME=?", (newquotetarget,))
                             for x in cc:
                                 print(x)
                                 newquotetarge = f'<@!{x[1]}>'
@@ -308,7 +329,6 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                     except Exception:
                         qqavatarlink = None
                 if 'Quote' in j:
-                    c = helper.connect_db('./msgid.db')
                     cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['Quote']['MID']}%'")
                     msgid = False
                     for x in cc:
@@ -359,7 +379,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                                                       wait=True)
                                 sendid.append(str(imgsend.id))
 
-                helper.writeid('|'.join(sendid), j["MID"])
+                helper.writeid('|'.join(sendid), j["MID"], conn)
             await session.close()
 
 
@@ -380,7 +400,7 @@ async def DCsendtoQQ(message, messages, edited=False):
             emsglst.append(ele['url'])
         if 'fields' in ele:
             for field_value in ele['fields']:
-                emsglst.append(field_value['name'] + '\n' + field_value['value'])
+                emsglst.append(field_value['name'] + ': ' + field_value['value'])
         if 'description' in ele:
             emsglst.append(ele['description'])
         if 'footer' in ele:
@@ -427,21 +447,19 @@ async def DCsendtoQQ(message, messages, edited=False):
         pass
     dst['MID'] = str(message.id)
     if message.reference != None:
-        c = helper.connect_db('./msgid.db')
         cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{message.reference.message_id}%'")
         for x in cc:
             msgids = x[1]
             msgids = msgids.split('|')
             dst['Quote'] = msgids[0]
     dst['Text'] = messages
-    j = dst
     msgchain = MessageChain.create([])
-    text = j['Text']
-    helper.writedcuser(j['Name'], j['UID'])
-    if 'Nick' in j:
-        displayname = f'{j["Nick"]}({j["Name"]})'
+    text = dst['Text']
+    helper.writedcuser(dst['Name'], dst['UID'])
+    if 'Nick' in dst:
+        displayname = f'{dst["Nick"]}({dst["Name"]})'
     else:
-        displayname = j["Name"]
+        displayname = dst["Name"]
     text = f'{displayname}:\n{text}'
     text = re.sub('\[<.*:.*>]', '', text)
     text = re.sub(r'\r$|\n$', '', text)
@@ -471,15 +489,15 @@ async def DCsendtoQQ(message, messages, edited=False):
 
         try:
             with eventlet.Timeout(15):
-                msgid = await sendmsg(j, msgchain)
+                msgid = await sendmsg(dst, msgchain)
         except eventlet.timeout.Timeout:
             raise TimeoutError
     except (TimeoutError, Exception):
         traceback.print_exc()
         sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
-                                             quote=j['Quote'] if 'Quote' in j else None)
+                                             quote=dst['Quote'] if 'Quote' in dst else None)
         msgid = str(sendmsg.messageId)
-        textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
+        textre = re.findall(r'\[<.*?:.*?>]', dst['Text'])
         try:
             for elements in textre:
                 a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
@@ -487,25 +505,27 @@ async def DCsendtoQQ(message, messages, edited=False):
                     msgchain2 = msgchain.create(
                         [Image.fromNetworkAddress(url=a.group(1))])
                     sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2,
-                                                         quote=j['Quote'] if 'Quote' in j else None)
+                                                         quote=dst['Quote'] if 'Quote' in dst else None)
                     msgid += f'|{sendimg.messageId}'
                     if debug == True:
                         helper.writeqqmsg(msgid, a.group(1))
         except Exception:
             traceback.print_exc()
-    helper.writeid(j['MID'], msgid)
+    if edited:
+        c.execute("DElETE FROM ID WHERE DCID=?", (dst['MID'],))
+    helper.writeid(dst['MID'], msgid, conn)
 
 
 @bcc.receiver("GroupMessage")
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
     if group.id == target_qqgroup:
         if message.asDisplay() == '$count':
-            a = helper.connect_db('../msgid.db').execute('SELECT COUNT(*) as cnt FROM ID').fetchone()
-            a1 = round(os.path.getsize('../msgid.db') / float(1024 * 1024), 2)
-            b = helper.connect_db('../qqmsg.db').execute('SELECT COUNT(*) as cnt FROM MSG').fetchone()
-            b1 = round(os.path.getsize('../qqmsg.db') / float(1024 * 1024), 2)
-            c = helper.connect_db('../dcname.db').execute('SELECT COUNT(*) as cnt FROM DCNAME').fetchone()
-            c1 = round(os.path.getsize('../dcname.db') / float(1024 * 1024), 2)
+            a = helper.connect_db('./msgid.db').execute('SELECT COUNT(*) as cnt FROM ID').fetchone()
+            a1 = round(os.path.getsize('./msgid.db') / float(1024 * 1024), 2)
+            b = helper.connect_db('./qqmsg.db').execute('SELECT COUNT(*) as cnt FROM MSG').fetchone()
+            b1 = round(os.path.getsize('./qqmsg.db') / float(1024 * 1024), 2)
+            c = helper.connect_db('./dcname.db').execute('SELECT COUNT(*) as cnt FROM DCNAME').fetchone()
+            c1 = round(os.path.getsize('./dcname.db') / float(1024 * 1024), 2)
             d = f'''msgid.db({a1}MB):
 - ID: {a[0]}
 qqmsg.db({b1}MB):
@@ -516,10 +536,11 @@ dcname.db({c1}MB):
         if message.asDisplay() == '谁At我':
             try:
                 if debug == True:
-                    a = helper.connect_db('../qqmsg.db').execute(f"SELECT ID, MSG FROM MSG WHERE MSG LIKE '%{'@[QQ: ' + str(member.id) + ']'}%'").fetchall()[-1]
+                    a = helper.connect_db('./qqmsg.db').execute(f"SELECT ID, MSG FROM MSG WHERE MSG LIKE '%{'@[QQ: ' + str(member.id) + ']'}%'").fetchall()[-1]
                     print(a[0])
                     await app.sendGroupMessage(group, MessageChain.create([Plain('This.')]), quote=int(a[0]))
             except Exception:
+                traceback.print_exc()
                 await app.sendGroupMessage(group, MessageChain.create([Plain('无法定位。')]))
 
 
