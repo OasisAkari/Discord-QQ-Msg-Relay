@@ -7,18 +7,22 @@ from discord import Webhook, AsyncWebhookAdapter
 import websockets
 import eventlet
 
-def writeid(dcmsgid, qqmsgid):
+def writeid(dcmsgid, qqmsgid, conn=None):
     dbpath = os.path.abspath('./msgid.db')
     if not os.path.exists(dbpath):
         createdb = open(dbpath, 'w')
         createdb.close()
         conn = sqlite3.connect(dbpath)
-        c = conn.cursor()
-        c.execute('''CREATE TABLE ID
+        d = conn.cursor()
+        d.execute('''CREATE TABLE ID
                (DCID TEXT PRIMARY KEY     NOT NULL,
                QQID           TEXT    NOT NULL);''')
-    conn = sqlite3.connect(dbpath)
-    c = conn.cursor()
+        d.close()
+    if conn == None:
+        conn = sqlite3.connect(dbpath)
+        c = conn.cursor()
+    else:
+        c = conn.cursor()
     try:
         c.execute("INSERT INTO ID (DCID, QQID) VALUES (?, ?)", (dcmsgid, qqmsgid))
     except Exception:
@@ -74,8 +78,7 @@ def writedcuser(dcname, id):
 def connect_db(path):
     dbpath = os.path.abspath(path)
     conn = sqlite3.connect(dbpath)
-    c = conn.cursor()
-    return c
+    return conn
 
 
 async def dc_debug_webhook(debug_webhook_link, message, username, avatar_url=None):
