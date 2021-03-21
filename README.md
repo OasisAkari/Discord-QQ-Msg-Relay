@@ -1,7 +1,7 @@
 # Discord-QQ-Msg-Relay
 将Discord和QQ的消息相互转发
 # 已跑路
-请使用![伟大的莉特西大人制作的比本辣鸡项目更加强大的新版互联插件这个屎山就应该让它进垃圾堆代码烂的要死变量乱写可维护性低就是一坨大屎山赶紧远离](https://github.com/XxLittleCxX/koishi-plugin-dcqq-relay)
+请使用[伟大的莉特西大人制作的比本辣鸡项目更加强大的新版互联插件这个屎山就应该让它进垃圾堆代码烂的要死变量乱写结构松散还可维护性低就是一坨大屎山赶紧远离](https://github.com/XxLittleCxX/koishi-plugin-dcqq-relay)
 
 # 效果
 ![Img](https://github.com/Teahouse-Studios/Discord-QQ-Msg-Relay/blob/main/20201117144204.png?raw=true)
