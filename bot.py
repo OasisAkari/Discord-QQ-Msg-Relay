@@ -68,13 +68,6 @@ async def on_message(message):
 async def on_message_edit(before, after):
     if before.channel.id == channelid:
         if before.id != -1:
-            print('Edit before:', before)
-            print('Edit after:', after)
-            try:
-                print('Edit embeds before: ', before.embeds[0].to_dict())
-                print('Edit embeds after: ', after.embeds[0].to_dict())
-            except:
-                pass
             if before.content != after.content or before.embeds[0].to_dict() != after.embeds[0].to_dict():
                 messages = after.content
                 emojis = re.findall(r'<:.*?:.*?>', messages)
@@ -142,20 +135,17 @@ async def revokeevent(event: GroupRecallEvent):
     print(event)
     try:
         if event.group.id == target_qqgroup:
-            dst = {}
             if event.authorId != qq:
-                dst['Type'] = 'QQrecall'
+                MType = 'QQrecall'
             else:
-                dst['Type'] = 'QQrecallI'
-            dst['MID'] = event.messageId
-            dst['UID'] = event.authorId
-            j = dst
+                MType = 'QQrecallI'
+            MID = event.messageId
             if debug:
                 print(event.authorId)
                 try:
                     d = helper.connect_db('./qqmsg.db')
                     d = d.cursor()
-                    cc = d.execute("SELECT * FROM MSG WHERE ID=?", (event.messageId,))
+                    cc = d.execute("SELECT * FROM MSG WHERE ID=?", (MID,))
                     for x in cc:
                         msg = x[1]
                     msg = re.sub('@', '\@', msg)
@@ -163,9 +153,9 @@ async def revokeevent(event: GroupRecallEvent):
                                                   '[QQ]')
                 except Exception:
                     traceback.print_exc()
-            if j['Type'] == 'QQrecall':
+            if MType == 'QQrecall':
                 channel = client.get_channel(channelid)
-                cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
+                cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{MID}%'")
                 for x in cc:
                     msgid = x[0]
                 try:
@@ -175,14 +165,14 @@ async def revokeevent(event: GroupRecallEvent):
                         await aa.delete()
                 except:
                     traceback.print_exc()
-            if j['Type'] == 'QQrecallI':
-                cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['MID']}%'")
+            if MType == 'QQrecallI':
+                cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{MID}%'")
                 for x in cc:
                     msgids = x[1]
                     print(msgids)
                     msgids = msgids.split('|')
                     for y in msgids:
-                        if y != j['MID']:
+                        if y != MID:
                             try:
                                 await app.revokeMessage(y)
                             except Exception:
@@ -206,43 +196,42 @@ bcc.loop.create_task(login_dcbot())
 async def group_message_handler(app: GraiaMiraiApplication, message: MessageChain, group: Group, member: Member):
     if group.id == target_qqgroup:
         if message.asDisplay()[0:2] != '//':
-            dst = {}
             print(message)
             msglist = []
             imglist = []
             newquotetarget = None
+            Quotet = False
             quotes = message.get(Quote)
             for quote in quotes:
-                Quotet = {}
+                Quotet = True
                 senderId = quote.senderId
                 orginquote = quote.origin.asDisplay()
                 if senderId != qq:
-                    Quotet['From'] = 'QQ'
+                    QuoteFrom = 'QQ'
                     try:
                         getnickname = await app.getMember(target_qqgroup, senderId)
                         getnickname = re.sub(r'(\*|_|`|~~)', r'\\\1', getnickname.name)
-                        Quotet['Name'] = getnickname
+                        QuoteName = getnickname
                     except Exception:
-                        Quotet['Name'] = senderId
+                        QuoteName = senderId
                 else:
-                    Quotet['From'] = 'Discord'
+                    QuoteFrom = 'Discord'
                     newquotetargetre = re.match(r'(.*?):.*', orginquote)
                     if newquotetargetre:
                         newquotetarget = newquotetargetre.group(1)
-                        Quotet['Name'] = newquotetarget
+                        QuoteName = newquotetarget
                         orginquote = re.sub(r'.*?:', '', orginquote)
                     else:
-                        Quotet['Name'] = ''
+                        QuoteName = ''
                 orginquote = re.sub('\r', '\n', orginquote)
-                Quotet['MID'] = quote.id
-                Quotet['Text'] = orginquote
+                QuoteMID = quote.id
+                QuoteText = orginquote
                 try:
                     time = quote.origin[Source][0].time.astimezone(timezone(timedelta(hours=8)))
                 except:
                     time = ''
                 time = re.sub(r'\+.*', '', str(time))
-                Quotet['Time'] = time
-                dst['Quote'] = Quotet
+                QuoteTime = time
             ats = message.get(At)
             for at in ats:
                 atId = at.target
@@ -310,17 +299,16 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
             allmsg = '\n'.join(msglist)
             if debug == True:
                 helper.writeqqmsg(message[Source][0].id, allmsg)
-            dst['UID'] = str(member.id)
-            dst['Name'] = member.name
-            dst['MID'] = str(message[Source][0].id)
-            dst['Text'] = allmsg
-            j = dst
+            UID = str(member.id)
+            Name = member.name
+            MID = str(message[Source][0].id)
+            Text = allmsg
             sendid = []
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(60)) as session:
                 webhook = discord.Webhook.from_url(webhook_link
                                                    ,
                                                    adapter=AsyncWebhookAdapter(session))
-                qqavatarbase = 'https://ptlogin2.qq.com/getface?appid=1006102&imgtype=3&uin=' + j['UID']
+                qqavatarbase = 'https://ptlogin2.qq.com/getface?appid=1006102&imgtype=3&uin=' + UID
                 async with session.get(qqavatarbase) as qlink:
                     try:
                         qqavatarlink = re.match(r'pt.setHeader\({".*?":"(https://thirdqq.qlogo.cn/.*)"}\)',
@@ -328,8 +316,8 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                         qqavatarlink = qqavatarlink.group(1)
                     except Exception:
                         qqavatarlink = None
-                if 'Quote' in j:
-                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{j['Quote']['MID']}%'")
+                if Quotet:
+                    cc = c.execute(f"SELECT * FROM ID WHERE QQID LIKE '%{QuoteMID}%'")
                     msgid = False
                     for x in cc:
                         print(x)
@@ -337,22 +325,22 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                         msgids = msgids.split('|')
                         msgid = msgids[0]
                     embed = discord.Embed.from_dict({
-                        "description": f"{j['Quote']['Name']} | {j['Quote']['Time']}" + (f"[[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})" if msgid else '[ ? ]'),
-                        "footer": {"text": f"{j['Quote']['Text']}"},
+                        "description": f"{QuoteName} | {QuoteTime}" + (f"[[ ↑ ]](https://discord.com/channels/{serverid}/{channelid}/{msgid})" if msgid else '[ ? ]'),
+                        "footer": {"text": f"{QuoteText}"},
                     })
                     embed.color = 0x4F545C
-                    quotesend = await webhook.send(username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                    quotesend = await webhook.send(username=f'[QQ: {UID}] {Name}',
                                        avatar_url=qqavatarlink,
                                        allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
                                        embed=embed, wait=True
                                        )
                     sendid.append(str(quotesend.id))
-                txt = j['Text']
+                txt = Text
                 if str(member.permission) not in ['MemberPerm.Administrator',
                                                       'MemberPerm.Owner']:
-                    txt = re.sub(r'@everyone|@here|<@&.*?>', '@someone', j['Text'])
+                    txt = re.sub(r'@everyone|@here|<@&.*?>', '@someone', Text)
                 try:
-                    send = await webhook.send(txt, username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                    send = await webhook.send(txt, username=f'[QQ: {UID}] {Name}',
                                               avatar_url=qqavatarlink,
                                               allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
                                               wait=True)
@@ -364,7 +352,7 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                         async with aiohttp.ClientSession() as session2:
                             async with session2.get(img) as resp:
                                 if resp.status != 200:
-                                    imgsend = await webhook.send('错误：无法发送图片', username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                    imgsend = await webhook.send('错误：无法发送图片', username=f'[QQ: {UID}] {Name}',
                                           avatar_url=qqavatarlink,
                                           allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
                                           wait=True)
@@ -372,14 +360,14 @@ async def group_message_handler(app: GraiaMiraiApplication, message: MessageChai
                                     imgbytes = await resp.read()
                                     ftt = ft.match(imgbytes).extension
                                     data = io.BytesIO(imgbytes)
-                                    imgsend = await webhook.send('', username=f'[QQ: {j["UID"]}] {j["Name"]}',
+                                    imgsend = await webhook.send('', username=f'[QQ: {UID}] {Name}',
                                                       avatar_url=qqavatarlink,
                                                       file=discord.File(data, 'image.' + ftt),
                                                       allowed_mentions=discord.AllowedMentions(everyone=True, users=True),
                                                       wait=True)
                                 sendid.append(str(imgsend.id))
 
-                helper.writeid('|'.join(sendid), j["MID"], conn)
+                helper.writeid('|'.join(sendid), MID, conn)
             await session.close()
 
 
@@ -436,32 +424,32 @@ async def DCsendtoQQ(message, messages, edited=False):
             q.append('')
             strikemsg = '̶'.join(q)
             messages = re.sub(strike, strikemsg, messages)
-    dst = {}
-    dst['Type'] = 'QQ'
-    dst['UID'] = str(message.author.id)
-    dst['Name'] = str(message.author)
+    UID = str(message.author.id)
+    Name = str(message.author)
+    Nick = False
     try:
         if message.author.nick is not None:
-            dst['Nick'] = message.author.nick
+            Nick = message.author.nick
     except Exception:
         pass
-    dst['MID'] = str(message.id)
+    MID = str(message.id)
+    Quotet = False
     if message.reference != None:
         cc = c.execute(f"SELECT * FROM ID WHERE DCID LIKE '%{message.reference.message_id}%'")
         for x in cc:
             msgids = x[1]
             msgids = msgids.split('|')
-            dst['Quote'] = msgids[0]
-    dst['Text'] = messages
+            Quotet = msgids[0]
+    text = messages
     msgchain = MessageChain.create([])
-    text = dst['Text']
-    helper.writedcuser(dst['Name'], dst['UID'])
-    if 'Nick' in dst:
-        displayname = f'{dst["Nick"]}({dst["Name"]})'
+    helper.writedcuser(Name, UID)
+    if Nick:
+        displayname = f'{Nick}({Name})'
     else:
-        displayname = dst["Name"]
+        displayname = Name
     text = f'{displayname}:\n{text}'
-    text = re.sub('\[<.*:.*>]', '', text)
+    print(text)
+    text = re.sub(r'\[<.*:.*>]', '', text)
     text = re.sub(r'\r$|\n$', '', text)
     text = re.split(r'(@\[QQ: .*?].*#0000|@\[QQ: .*?])', text)
     for ele in text:
@@ -472,32 +460,29 @@ async def DCsendtoQQ(message, messages, edited=False):
             msgchain = msgchain.plusWith(MessageChain.create([Plain(ele)]))
     if edited:
         msgchain = msgchain.plusWith(MessageChain.create([Plain('（已编辑）')]))
+    text = messages
     try:
-        async def sendmsg(j, msgchain):
-            textre = re.findall(r'\[<.*?:.*?>]', j['Text'])
-            for elements in textre:
-                a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
-                if a:
-                    msgchain = msgchain.plusWith(msgchain.create(
-                        [Image.fromNetworkAddress(url=a.group(1))]))
-            sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
-                                                 quote=j['Quote'] if 'Quote' in j else None)
-            msgid = str(sendmsg.messageId)
-            if debug == True:
-                helper.writeqqmsg(msgid, j['Text'])
-            return msgid
-
         try:
             with eventlet.Timeout(15):
-                msgid = await sendmsg(dst, msgchain)
+                textre = re.findall(r'\[<.*?:.*?>]', text)
+                for elements in textre:
+                    a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
+                    if a:
+                        msgchain = msgchain.plusWith(msgchain.create(
+                            [Image.fromNetworkAddress(url=a.group(1))]))
+                sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
+                                                     quote=Quotet if Quotet else None)
+                msgid = str(sendmsg.messageId)
+                if debug == True:
+                    helper.writeqqmsg(msgid, text)
         except eventlet.timeout.Timeout:
             raise TimeoutError
     except (TimeoutError, Exception):
         traceback.print_exc()
         sendmsg = await app.sendGroupMessage(target_qqgroup, msgchain,
-                                             quote=dst['Quote'] if 'Quote' in dst else None)
+                                             quote=Quotet if Quotet else None)
         msgid = str(sendmsg.messageId)
-        textre = re.findall(r'\[<.*?:.*?>]', dst['Text'])
+        textre = re.findall(r'\[<.*?:.*?>]', text)
         try:
             for elements in textre:
                 a = re.match(r'\[\<ImageURL:(.*)\>\]', elements)
@@ -505,15 +490,15 @@ async def DCsendtoQQ(message, messages, edited=False):
                     msgchain2 = msgchain.create(
                         [Image.fromNetworkAddress(url=a.group(1))])
                     sendimg = await app.sendGroupMessage(target_qqgroup, msgchain2,
-                                                         quote=dst['Quote'] if 'Quote' in dst else None)
+                                                         quote=Quotet if Quotet else None)
                     msgid += f'|{sendimg.messageId}'
                     if debug == True:
                         helper.writeqqmsg(msgid, a.group(1))
         except Exception:
             traceback.print_exc()
     if edited:
-        c.execute("DElETE FROM ID WHERE DCID=?", (dst['MID'],))
-    helper.writeid(dst['MID'], msgid, conn)
+        c.execute("DElETE FROM ID WHERE DCID=?", (MID,))
+    helper.writeid(MID, msgid, conn)
 
 
 @bcc.receiver("GroupMessage")

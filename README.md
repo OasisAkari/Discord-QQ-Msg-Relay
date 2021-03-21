@@ -1,7 +1,8 @@
 # Discord-QQ-Msg-Relay
 将Discord和QQ的消息相互转发
-# 注意
-本机器人架构由于近日的迷之运行不稳定原因，已弃用Websocket作为消息交换的桥梁，暂时改用内部的强耦合连接来保证消息传输，有少量先前版本使用的传输方式的痕迹存在于代码，阅读代码可能会导致一定程度的困惑，为此我感到抱歉~~下次还敢~~，~~在遥远的~~以后将会进行更深一步的重构。
+# 已跑路
+请使用![伟大的莉特西大人制作的比本辣鸡项目更加强大的新版互联插件这个屎山就应该让它进垃圾堆代码烂的要死变量乱写可维护性低就是一坨大屎山赶紧远离](https://github.com/XxLittleCxX/koishi-plugin-dcqq-relay)
+
 # 效果
 ![Img](https://github.com/Teahouse-Studios/Discord-QQ-Msg-Relay/blob/main/20201117144204.png?raw=true)
 # 配置
